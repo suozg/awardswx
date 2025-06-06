@@ -44,14 +44,17 @@ wxPython                  4.2.0
 
 ----------
 sudo apt update
+
 sudo apt install python3-wxgtk4.0 sqlcipher
 
 sudo apt-get install -f
 
 #create venv:
 python3 -m venv --system-site-packages venv
+
 source venv/bin/activate
 
 cd <awardswx dir>
+
 python main.py
 
