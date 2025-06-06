@@ -54,7 +54,7 @@ python3 -m venv --system-site-packages venv
 
 source venv/bin/activate
 
-cd <awardswx dir>
+cd awardswx_dir
 
 python main.py
 
