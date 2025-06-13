@@ -167,7 +167,7 @@ def get_award_and_presentation_info(person_ids, cursor):
 
         for row in presentations:
             inn = str(row[4]).split('.')[0] if row[4] else ' '
-            worker = "ВП" if row[8] == 1 else "МПЗ" if row[8] == 2 else "інші"
+            worker = "ВП" if row[8] == 0 else "МПЗ" if row[8] == 1 else "інші"
 
             if row[7] is None:
                 Vidmova = "(НА РОЗГЛЯДІ)"

@@ -311,7 +311,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         # FlexGridSizer для верхніх полів (Номер, Дата, Виконавець, Рух)
         # Тепер має 8 колонок: Label, Control, Label, Control, Label, Control, Label, Control
-        grid = wx.FlexGridSizer(rows=1, cols=8, vgap=5, hgap=2)
+        grid = wx.FlexGridSizer(rows=1, cols=9, vgap=5, hgap=2)
 
         # Номер подання
         grid.Add(wx.StaticText(self, label=" Номер:"), 0, wx.ALIGN_CENTER_VERTICAL)
@@ -335,7 +335,12 @@ class KartkaPanel(scrolled.ScrolledPanel):
         self.submission_movement_ctrl = wx.TextCtrl(self) # Зберігаємо посилання
         grid.Add(self.submission_movement_ctrl, 0, wx.EXPAND) # proportion 0, розтягування в FlexGridSizer
 
-        # Налаштування FlexGridSizer
+        # кнопка повторения последнего ввода
+        self.movement_btn = wx.Button(self, label="⟳", size=(50, -1))
+        self.movement_btn.Bind(wx.EVT_BUTTON, self.on_retry_executor_button_clicked) # Прив'язуємо обробник, якщо потрібно
+        grid.Add(self.movement_btn, 0, wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        # Налаштування розтягування колонок
         grid.AddGrowableCol(1, 1) # Номер подання
         grid.AddGrowableCol(3, 0) # Дата - не розтягуємо
         grid.AddGrowableCol(5, 0) # Виконавець
@@ -686,7 +691,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
             self.person_search_results_ctrl.AppendItems(["Не знайдено"])
             self.person_search_results_ctrl.SetSelection(0) # Вибираємо "Не знайдено"
             self.person_result_count_text.SetLabel("0")
-            self.update_footer_message("Заповніть поля, натисніть 'Зберегти'")
+            self.update_footer_message("Заповніть поля, натисніть 'Зберегти'. Кнопки '⟳' повторюють останній ввід.")
 
         # --- Оновлюємо компонування ---
         self.Layout()
@@ -1075,6 +1080,53 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
 
     """----- ВСПОМОГАТЕЛЬНИЕ МЕТОДИ  ------"""
+    
+    def on_retry_executor_button_clicked(self, event):
+        """
+        Отримує дані останнього запису з таблиці 'presentation' і заповнює
+        відповідні поля на формі, використовуючи вже існуючий self.cursor,
+        включаючи поля дат.
+        """
+
+        try:
+            self.cursor.execute("SELECT registration, date_registration, worker, report FROM presentation ORDER BY rowid DESC LIMIT 1")
+            clip_pres = self.cursor.fetchone()
+
+            if clip_pres:
+                submission_registration = clip_pres[0]
+                submission_date = clip_pres[1]
+                submission_executor = clip_pres[2]
+                submission_movement = clip_pres[3]
+
+                if self.submission_number_ctrl:
+                    self.submission_number_ctrl.SetValue(str(submission_registration or "").strip())
+
+                if self.submission_executor_ctrl:
+                    worker_map = {0: "ВП", 1: "МПЗ"}
+                    worker_val = worker_map.get(int(submission_executor), "інші")
+                    self.submission_executor_ctrl.SetStringSelection(worker_val)
+
+                if self.submission_movement_ctrl:
+                    self.submission_movement_ctrl.SetValue(str(submission_movement or "").strip())
+
+                if  self.PresDATE and submission_date:
+                    try:
+                        year, month, day = map(int, submission_date.split('-'))
+                        wx_date = wx.DateTime(day, month - 1, year)
+                        self.PresDATE.SetValue(wx_date)
+                    except ValueError:
+                        wx.MessageBox(f"Некоректний формат дати подання: {submission_date}", "Помилка дати", wx.ICON_WARNING)
+                elif self.PresDATE:
+                    self.PresDATE.SetValue(wx.DateTime.Today())
+
+            else:
+                wx.MessageBox("Немає даних про нагородження для заповнення з бази даних.", "Інформація", wx.OK | wx.ICON_INFORMATION)
+
+        except Exception as e:
+            wx.MessageBox(f"Помилка при заповненні полів Подання: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
+        finally:
+            pass
+
 
     def on_retry_meed_button_clicked(self, event):
         """
@@ -1144,7 +1196,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 wx.MessageBox("Немає даних про нагородження для заповнення з бази даних.", "Інформація", wx.OK | wx.ICON_INFORMATION)
 
         except Exception as e:
-            wx.MessageBox(f"Помилка при заповненні полів: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
+            wx.MessageBox(f"Помилка при заповненні полів Нагородження: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
         finally:
             pass
 
