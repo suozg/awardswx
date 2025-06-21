@@ -6,9 +6,8 @@ import re
 import wx.lib.scrolledpanel as scrolled # <-- Додайте цей імпорт
 import io
 from PIL import Image, ImageEnhance # Need to import PIL
-
 from datetime import datetime, timedelta
-
+from config import DEF_FUT_LABEL
 from database_logic import (
     get_units_and_ranks, # загрузка списков підрозділів и званий
     get_treedata, # загрузка списка ВСЕХ известних наград из ДОВІДНИК
@@ -580,6 +579,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         if self.delete_ctrl: self.delete_ctrl.SetSelection(0)
         self.search_query_text = None
         self.delete_mode_on = False
+        self.update_footer_message(DEF_FUT_LABEL)
 
 
     def clear_submission_data(self):
@@ -712,8 +712,8 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         # 1 -------- Заполнение данних на ОСОБУ
 
-        self.full_name_ctrl.SetValue(str(person[3])) # ПІБ 
-
+        self.full_name_ctrl.SetValue(self.search_query_text) # ПІБ 
+        self.update_footer_message(f"Дані на: {self.search_query_text} [{self.current_person_id}]")
         inn_value = person[5] # РНОКПП
         inn_value_str = ''
         if inn_value: 
@@ -912,7 +912,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 y, m, d = map(int, date_registration.split('-'))
                 self.PresDATE.SetValue(wx.DateTime.FromDMY(d, m - 1, y))
             except Exception as e:
-                print(f"Помилка при встановленні дати: {e}")
+                self.update_footer_message(f"Помилка при встановленні дати подання: {e}")
             
             worker_map = {0: "ВП", 1: "МПЗ"}
             worker_val = worker_map.get(int(worker), "інші")
@@ -1017,7 +1017,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                     y, m, d = map(int, award_date.split('-'))
                     self.award_date_ctrl.SetValue(wx.DateTime.FromDMY(d, m - 1, y))
                 except Exception as e:
-                    print(f"Помилка дати нагородження: {e}")
+                    self.update_footer_message(f"Помилка дати нагородження: {e}")
 
             # Manually trigger the handler for meed posthumous checkbox           
             if dead is not None: # Перевіряємо, чи взагалі є значення
@@ -1041,7 +1041,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                     y, m, d = map(int, handover_date.split('-'))
                     self.HandoverDATE.SetValue(wx.DateTime.FromDMY(d, m - 1, y))
                 except Exception as e:
-                    print(f"Помилка дати вручення: {e}")
+                    self.update_footer_message(f"Помилка дати вручення: {e}")
 
             # Обробка "человеческого вивода" получателя нагороди
             if hasattr(self, 'HandowerNAME'):
@@ -1373,11 +1373,9 @@ class KartkaPanel(scrolled.ScrolledPanel):
             # Перевіряємо, чи атрибут birtday існує, перш ніж використовувати його
             if hasattr(self, 'birtday') and self.birtday:
                 self.birtday.SetLabel(f"Дата народження: {self.birth_date}")
-            self.update_footer_message("РНОКПП валідний.") # Оновлюємо футер
         else:
             if hasattr(self, 'birtday') and self.birtday:
                 self.birtday.SetLabel("Невірний РНОКПП")
-            self.update_footer_message("Невірний РНОКПП.") # Оновлюємо футер
         # Перевіряємо, чи event не є None, перш ніж викликати event.Skip()
         if event:
             event.Skip()

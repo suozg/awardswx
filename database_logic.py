@@ -9,8 +9,8 @@ from PIL import Image
 from pysqlcipher3 import dbapi2 as sqlite3
 import wx
 
-from config import (DATABASE_FILE_PATH, DEF_FUT_LABEL, MASTERKEY,
-                    SHOW_MORE_IMAGES, START_YEAR)
+"""from config import (DATABASE_FILE_PATH, DEF_FUT_LABEL, MASTERKEY,
+                    SHOW_MORE_IMAGES, START_YEAR)"""
 
 RankingValues = ["", "Найвища", "Президент", "ВРУ", "МОУ/ГК/ГШ", "РНБО", "ОК/ОТУ/Бригада"]
 

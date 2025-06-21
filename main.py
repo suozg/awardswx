@@ -7,6 +7,7 @@ from config import (
     )
 from database_logic import connect_to_database, is_database_existing, create_database
 from settings_manager import ServiceSettingsManager
+import argparse # Импортируем argparse для обработки аргументов командной строки
 
 # Импортируем классы всех панелей-вкладок
 from search_tab import Tab1Panel
@@ -57,9 +58,14 @@ class MainFrame(wx.Frame):
         self.fut_place = None
         self.conn = None
         self.cursor = None
-
         self.last_active_tab_index = -1
         self.refreshed_tabs = set()
+
+        # аргумент командной строки -с /путь/к/базе
+        parser_file_db = argparse.ArgumentParser(description='Process some database file.')
+        parser_file_db.add_argument('-c', type=str, default=self.database_path, help='Path to the database file')
+        args_db = parser_file_db.parse_args()
+        self.database_path = args_db.c
 
         # --- Визначаємо, чи існує БД, ОДИН РАЗ перед запитом пароля ---
         self.db_exists_at_start = is_database_existing(self.database_path)
@@ -271,6 +277,7 @@ class MainFrame(wx.Frame):
             panel9 = SettingsPanel(
                 tab9_container_panel,
                 self.conn, self.cursor,
+                self.database_path,
                 self.KEY, fut_place=self.fut_place,
                 tab4_panel=panel4,
                 info_panel=tab10_panel,

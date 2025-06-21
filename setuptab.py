@@ -6,7 +6,7 @@ import wx.lib.scrolledpanel as scrolled
 import os
 import sqlite3
 from wx import MessageBox, OK, ICON_INFORMATION, ICON_ERROR, ICON_WARNING
-from config import ALL_COLUMN_LABELS, DATABASE_FILE_PATH, DEF_FUT_LABEL
+from config import ALL_COLUMN_LABELS, DEF_FUT_LABEL
 
 import io
 
@@ -39,7 +39,7 @@ LOGO_HEIGHT = 150
 
 # --- Клас для вкладки "Настройки" ---
 class SettingsPanel(scrolled.ScrolledPanel):
-    def __init__(self, parent, conn, cursor, KEY, fut_place=None, tab4_panel=None, info_panel=None, search_tab=None, kartka_panel=None):
+    def __init__(self, parent, conn, cursor, database_path, KEY, fut_place=None, tab4_panel=None, info_panel=None, search_tab=None, kartka_panel=None):
 
         super().__init__(parent) 
 
@@ -53,7 +53,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
 
         self.conn = conn
         self.cursor = cursor # Цей курсор можна використовувати для простих речей, але для записів/оновлень краще створювати локальні
-        self.db_path = DATABASE_FILE_PATH
+        self.db_path = database_path
         self.KEY = KEY # Ключ для доступу до БД, використовується у зміні пароля
         self.fut_place = fut_place
         self.last_footer_message = None

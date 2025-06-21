@@ -4,7 +4,7 @@ import wx # Бібліотека для створення графічного 
 import wx.richtext # Модуль для роботи з розширеним текстовим полем (RichTextCtrl)
 
 # Імпортуємо конфігураційні дані та логіку бази даних
-from config import MASTERKEY, DATABASE_FILE_PATH, START_YEAR, DEF_FUT_LABEL, SHOW_MORE_IMAGES
+from config import START_YEAR, DEF_FUT_LABEL, SHOW_MORE_IMAGES
 from database_logic import (
     search_q, get_service_settings_data, 
     get_award_image_blobs_for_search
