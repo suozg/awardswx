@@ -318,8 +318,39 @@ class AwardDataLoader:
 # ----------------------- конец блока запросов для TAB 1 ------------------
 
 
+# ------------------ используется в КАРТКА і ЗВІТ ----------------------
 
 
+def get_units_and_ranks(cursor):
+    """
+    Завантажує доступні підрозділи та ранги з бази даних за один запит.
+    Приймає об'єкт курсора БД.
+    Повертає кортеж: (список рангів, список підрозділів, включаючи порожній рядок на початку).
+    Піднімає виняток у випадку помилки БД.
+    """
+    loaded_units = ['']
+    loaded_ranks = []
+
+    try:
+        query = "SELECT rank_src, unit_src FROM libs"
+        raw_data = execute_query(cursor, query)
+
+        unique_units_set = set()
+        unique_ranks_set = set()
+
+        for row in raw_data:
+            if row and row[0] is not None and str(row[0]).strip():
+                unique_ranks_set.add(str(row[0]).strip())
+            if row and row[1] is not None and str(row[1]).strip():
+                unique_units_set.add(str(row[1]).strip())
+
+        loaded_ranks = sorted(list(unique_ranks_set))
+        loaded_units.extend(sorted(list(unique_units_set)))
+
+        return (loaded_ranks, loaded_units)
+
+    except Exception as e:
+        raise RuntimeError(f"Помилка бази даних при завантаженні підрозділів та рангів: {e}")
 
 
 
@@ -444,39 +475,8 @@ def delete_award_from_db(conn, cursor, award_id):
 # ----------------------- конец блока запросов для TAB 3 ------------------
 
 
+
 # ----------------------- блок запросов для TAB 4 Звіти ------------------
-
-def get_units_and_ranks(cursor):
-    """
-    Завантажує доступні підрозділи та ранги з бази даних за один запит.
-    Приймає об'єкт курсора БД.
-    Повертає кортеж: (список рангів, список підрозділів, включаючи порожній рядок на початку).
-    Піднімає виняток у випадку помилки БД.
-    """
-    loaded_units = ['']
-    loaded_ranks = []
-
-    try:
-        query = "SELECT rank_src, unit_src FROM libs"
-        raw_data = execute_query(cursor, query)
-
-        unique_units_set = set()
-        unique_ranks_set = set()
-
-        for row in raw_data:
-            if row and row[0] is not None and str(row[0]).strip():
-                unique_ranks_set.add(str(row[0]).strip())
-            if row and row[1] is not None and str(row[1]).strip():
-                unique_units_set.add(str(row[1]).strip())
-
-        loaded_ranks = sorted(list(unique_ranks_set))
-        loaded_units.extend(sorted(list(unique_units_set)))
-
-        return (loaded_ranks, loaded_units)
-
-    except Exception as e:
-        raise RuntimeError(f"Помилка бази даних при завантаженні підрозділів та рангів: {e}")
-
 
 def get_formatted_unique_awarded_distinctions(cursor, rank_filter=None):
     """

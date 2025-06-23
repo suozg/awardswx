@@ -750,7 +750,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
 
             # оновлюємо налаштування для вкладки ЗВІТ
             if self.tab4_panel:
-                wx.CallAfter(self.tab4_panel.reload_settings)
+                wx.CallAfter(self.tab4_panel.refresh_tree)
 
 
     def on_save_report_column_selection(self, event):
@@ -811,7 +811,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
 
             # оновлюємо налаштування для вкладки ЗВІТ
             if self.tab4_panel:
-                wx.CallAfter(self.tab4_panel.reload_settings)
+                wx.CallAfter(self.tab4_panel.refresh_tree)
 
 
     # --- Методы для редактирования глобальных переменных (звания, подразделения) ---

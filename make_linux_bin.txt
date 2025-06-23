@@ -1,0 +1,1 @@
+python -m PyInstaller --onefile --windowed     --hidden-import=tkinter     --hidden-import=tkcalendar     --hidden-import=pysqlcipher3     --hidden-import=PIL._tkinter_finder     --add-data "/usr/share/tcltk/tcl8.6:tcl"     --add-data "/usr/share/tcltk/tk8.6:tk"  awards_v4.1.py
