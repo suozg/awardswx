@@ -16,7 +16,6 @@ from database_logic import (
     connect_to_database # Ваша функція підключення
 )
 
-
 # Індекси стовпців для get_service_settings_data
 class ServiceSettingsIndices:
     LOGO = 0

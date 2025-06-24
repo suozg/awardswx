@@ -209,7 +209,7 @@ class MainFrame(wx.Frame):
         tab3_container_panel = wx.Panel(notebook, wx.ID_ANY)
         tab3_sizer = wx.BoxSizer(wx.VERTICAL)
         try:
-            panel3 = DovidnykPanel(tab3_container_panel, self.conn, self.cursor, fut_place=self.fut_place)
+            panel3 = DovidnykPanel(tab3_container_panel, self.conn, self.cursor, fut_place=self.fut_place, kartka_panel=panel2)
             tab3_sizer.Add(panel3, 1, wx.EXPAND | wx.ALL, 5)
             tab3_container_panel.SetSizer(tab3_sizer)
             notebook.AddPage(tab3_container_panel, "ДОВІДНИК")

@@ -63,7 +63,7 @@ def find_tree_category(tree_ctrl, category_name):
      return wx.TreeItemId() # Категория не найдена
 
 class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддержки прокрутки
-    def __init__(self, parent, conn, cursor, fut_place=None):
+    def __init__(self, parent, conn, cursor, fut_place=None, kartka_panel=None):
         super().__init__(parent, wx.ID_ANY) 
 
         self.edit_mode = None # None=view, 'create'=создание, 'edit'=редактирование
@@ -76,6 +76,8 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
         self._is_dragging = False # Добавляем новый флаг
         self.loaded_image_blob = None # Временное хранилище BLOB изображения для редактирования/создания
         self.selected_category_for_creation = None # Категория, выбранная для создания новой награды
+
+        self.kartka_panel = kartka_panel # для обновления комбосписка наград
 
         # Данные из базы данных structured as {category: {award_name: {details}}}
         self.awards_data = {}
@@ -535,6 +537,9 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
                 self.last_message = "Запис створено."
                 self.update_footer_message(self.last_message)
 
+                # обновляем данние КАРТКА
+                self._refresh_combo_award_ui()
+
             else:
                  wx.MessageBox("Виникла помилка при створенні запису в базі даних.", "Помилка БД", wx.OK | wx.ICON_ERROR)
 
@@ -595,6 +600,9 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
                 self.show_award_view(original_category, name_award_val) # Показываем обновленную награду
                 self.last_message = "Зміни збережено."
                 self.update_footer_message(self.last_message)
+
+                # обновляем данние КАРТКА
+                self._refresh_combo_award_ui()
 
             else:
                 wx.MessageBox("Виникла помилка при збереженні запису в базі даних.", "Помилка БД", wx.OK | wx.ICON_ERROR)
@@ -671,6 +679,9 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
 
                  # Возможно, нужно сбросить выбранный элемент в дереве, если он еще как-то выделен
                  # self.tree.UnselectAll() # show_view("no_selection") и сброс key/id могут быть достаточны
+
+                 # обновляем данние КАРТКА
+                 self._refresh_combo_award_ui()
 
             else:
                  wx.MessageBox("Виникла помилка при видаленні запису з бази даних.", "Помилка БД", wx.OK | wx.ICON_ERROR)
@@ -776,7 +787,7 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
             self.last_message = f"Режим створення. Категорія: {self.selected_category_for_creation}"
             self.update_footer_message(self.last_message)
         else:
-             wx.MessageBox("Виберіть категорію для створення нової нагороди.", "Помилка", wx.OK | wx.ICON_ERROR)
+            wx.MessageBox("Виберіть категорію для створення нової нагороди.", "Помилка", wx.OK | wx.ICON_ERROR)
 
 
     def on_edit_award(self, event):        
@@ -828,6 +839,13 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
 
         dlg.Destroy()
 
+    def _refresh_combo_award_ui(self):
+        # --- Метод для ПОВНОГО оновлення списків нагород в КАРТКА ---
+        # Цей метод викликається ПІСЛЯ збереження змін про нагороди
+        if self.kartka_panel: 
+            self.kartka_panel._load_award_data()
+            self.kartka_panel._update_award_combobox()
+        
     def update_footer_message(self, message):
         #  вивод текста в футер
         if self.fut_place:

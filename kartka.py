@@ -77,51 +77,26 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         try:
             if self.cursor:
-
                 # 1. Завантажуємо дані рангів та підрозділів
                 self._loaded_ranks, self._loaded_units = get_units_and_ranks(self.cursor)
                 self._loaded_ranks = [rank for rank in self._loaded_ranks if rank != ""]  # 1. Видаляємо усі існуючі порожні рядки зі списку
                 self._loaded_ranks.insert(0, "")  # 2. Додаємо один порожній рядок на початок списку
                 self._loaded_units = [unit for unit in self._loaded_units if unit != ""] # 1. Видаляємо усі існуючі порожні рядки зі списку
                 self._loaded_units.insert(0, "") # 2. Додаємо один порожній рядок на початок списку
-
-                # 2. Завантажуємо дані нагород
-                try:
-                    self.awards_data = get_treedata(self.cursor)
-
-                except Exception as e:
-                    self.awards_data = {}
-                    wx.MessageBox(f"Помилка завантаження даних нагород: {e}\nСписок нагород може бути неповним або порожнім.", "Помилка БД", wx.OK | wx.ICON_WARNING)
-
-                # 3. Витягуємо назви нагород для комбобокса
-                temp_award_names = []
-                self._award_id_to_name = {} # Ініціалізуємо словник для перетворення ID в назву
-
-                if self.awards_data:
-                    for ranking_desc, award_dict in self.awards_data.items():
-                        if award_dict:
-                            for award_name, details in award_dict.items():
-                                temp_award_names.append(award_name)
-                                self._award_id_to_name[details["award_id"]] = award_name
-
-                unique_award_names = list(set(temp_award_names))
-                unique_award_names.sort()
-                self._loaded_award_names = [""] + unique_award_names
-
             else:
                 # Обробка випадку, коли курсор не був створений
                 self._loaded_units = ["(Помилка завантаження)"]
                 self._loaded_ranks = ["(Помилка завантаження)"]
-                self._loaded_award_names = ["(Помилка завантаження)"]
                 wx.MessageBox("Курсор бази даних не був ініціалізований.", "Помилка", wx.OK | wx.ICON_ERROR)
 
         except Exception as e:
             # Загальна обробка помилок завантаження даних
             self._loaded_units = ["(Помилка завантаження)"]
             self._loaded_ranks = ["(Помилка завантаження)"]
-            self._loaded_award_names = ["(Помилка завантаження)"]
             wx.MessageBox(f"Загальна помилка при завантаженні початкових даних: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
         # --- Кінець завантаження початкових даних ---
+
+        self._load_award_data() # завантажуємо дані про нагороди
 
         # --- Завантаження стандартного зображення (логотипу) для панелі нагород ---
         self.default_award_bitmap = None # Атрибут для стандартного зображення (логотипу)
@@ -1336,7 +1311,52 @@ class KartkaPanel(scrolled.ScrolledPanel):
             self.unit_ctrl.AppendItems(new_data_unit_ctrl[2:])
         if new_data_rank_ctrl: 
             self.rank_ctrl.AppendItems(new_data_rank_ctrl[2:])
-  
+
+
+    def _load_award_data(self):
+        try:
+            if self.cursor:
+                # Завантажуємо дані нагород
+                try:
+                    self.awards_data = get_treedata(self.cursor)
+
+                except Exception as e:
+                    self.awards_data = {}
+                    wx.MessageBox(f"Помилка завантаження даних нагород: {e}\nСписок нагород може бути неповним або порожнім.", "Помилка БД", wx.OK | wx.ICON_WARNING)
+
+                # 3. Витягуємо назви нагород для комбобокса
+                temp_award_names = []
+                self._award_id_to_name = {} # Ініціалізуємо словник для перетворення ID в назву
+
+                if self.awards_data:
+                    for ranking_desc, award_dict in self.awards_data.items():
+                        if award_dict:
+                            for award_name, details in award_dict.items():
+                                temp_award_names.append(award_name)
+                                self._award_id_to_name[details["award_id"]] = award_name
+
+                unique_award_names = list(set(temp_award_names))
+                unique_award_names.sort()
+                self._loaded_award_names = [""] + unique_award_names
+
+            else:
+                # Обробка випадку, коли курсор не був створений
+                self._loaded_award_names = ["(Помилка завантаження)"]
+                wx.MessageBox("Курсор бази даних не був ініціалізований.", "Помилка", wx.OK | wx.ICON_ERROR)
+
+        except Exception as e:
+            # Загальна обробка помилок завантаження даних
+            self._loaded_award_names = ["(Помилка завантаження)"]
+            wx.MessageBox(f"Загальна помилка при завантаженні даних про нагороди: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
+
+
+    def _update_award_combobox(self):
+        # Метод для обновления 
+        if hasattr(self, 'award_ctrl') and self.award_ctrl:
+            self.award_ctrl.Clear()
+            self.award_ctrl.AppendItems(self._loaded_award_names)
+            self.award_ctrl.SetSelection(-1) 
+
 
     def create_buttons(self):
         # 1. Змінюємо орієнтацію sizer'а на ВЕРТИКАЛЬНУ
