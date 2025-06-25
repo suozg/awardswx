@@ -1,6 +1,6 @@
 # database_logic.py
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from itertools import chain
 import io
@@ -37,6 +37,63 @@ def sqlite_lower(value_):
 def is_tipa_inn(value):
     """Проверка на соответствие РНОКПП (ИНН)."""
     return bool(re.fullmatch(r"\d{10}", value))  # РНОКПП должен содержать ровно 10 цифр
+
+
+# --- Функція для обробки ІНН ---
+def is_valid_INN(inn):
+    """ Перевірка РНОКПП та обчислення дати народження """
+    if re.fullmatch(r"\d{10}", inn):
+        try: # Додаємо блок try для обробки можливих помилок при обчисленні дати
+            digits = [int(ch) for ch in inn]
+
+            k1 = (digits[0]*-1) + (digits[1]*5) + (digits[2]*7) + (digits[3]*9) + \
+                 (digits[4]*4) + (digits[5]*6) + (digits[6]*10) + (digits[7]*5) + (digits[8]*7)
+            k2 = k1 % 11
+            k3 = 0 if k2 == 10 else k2
+
+            if digits[9] == k3:
+                # Обчислення дати народження
+                days_to_add = int(inn[:5])
+                start_date = datetime(1899, 12, 31)
+                date_and_delta = start_date + timedelta(days=days_to_add)
+                birth_date = date_and_delta.strftime("%Y-%m-%d")
+                return birth_date # Повертаємо дату, якщо все гаразд
+            else:
+                return "" # Повертаємо порожній рядок, якщо контрольна сума не збігається
+        except Exception as e:
+            # У випадку будь-якої помилки під час обчислення
+            return ""
+            
+    return "" # Повертаємо порожній рядок, якщо формат ІНН невірний
+
+def _get_formatted_inn_display(raw_inn_value):
+    """
+    Обробляє сире значення ІНН з бази даних, валідує його
+    і повертає форматований рядок для відображення.
+    """
+    inn_str = ''
+    if raw_inn_value is not None:
+        try:
+            # Спробуємо перетворити на int, якщо це float або інший числовий тип
+            inn_str = str(int(float(raw_inn_value)))
+        except (ValueError, TypeError):
+            # Якщо не вдалося, беремо як є і очищаємо від пробілів
+            inn_str = str(raw_inn_value).strip()
+
+    # Валідуємо ІНН за допомогою вашої функції is_valid_INN
+    # Якщо is_valid_INN є методом класу, використовуйте self.is_valid_INN
+    # інакше, якщо це глобальна функція, просто is_valid_INN
+    validation_result = is_valid_INN(inn_str) # Або self.is_valid_INN(inn_str)
+
+    display_inn = inn_str # За замовчуванням відображаємо оригінальний ІНН
+
+    if validation_result == "": # Якщо is_valid_INN повернула порожній рядок (недійсний ІНН)
+        if display_inn:
+            display_inn += " (невірний)"
+        else:
+            display_inn = " (невірний)" # Або просто "" якщо ви хочете приховати, коли немає ІНН
+
+    return display_inn
 
 
 def execute_query(cursor, query, params=None):
@@ -122,9 +179,11 @@ def get_award_and_presentation_info(person_ids, cursor):
             counts_gid01 += 1            
 
         for row in awards:
-            inn = str(row[10]).split('.')[0] if row[10] else ' '
+            
+            display_inn = _get_formatted_inn_display(row[10]) 
+
             deadTxt = " (посмертно)" if row[16] == "1" else ""
-            person_output += f'\n* {row[8]} {row[9]} ({inn}, {row[11]}){deadTxt} *\n {row[14]} \n'
+            person_output += f'\n* {row[8]} {row[9]} ({display_inn}, {row[11]}){deadTxt} *\n {row[14]} \n'
             person_output += f' - указ/наказ : №{row[3]} від {row[2]};\n'
 
             imgList.append(row[1])
@@ -166,7 +225,8 @@ def get_award_and_presentation_info(person_ids, cursor):
         source_data_award_and_presentation.setdefault(pid, {})['presentations'] = presentations
 
         for row in presentations:
-            inn = str(row[4]).split('.')[0] if row[4] else ' '
+            display_inn = _get_formatted_inn_display(row[4]) 
+
             worker = "ВП" if row[8] == 0 else "МПЗ" if row[8] == 1 else "інші"
 
             if row[7] is None:
@@ -179,7 +239,7 @@ def get_award_and_presentation_info(person_ids, cursor):
             deadTxtP = "(посмертно)" if row[9] == "посмертно" else ""
             t_report = "" if row[9] == "посмертно" else row[9]
 
-            person_output += f'\n* {row[3]} {row[2]} ({inn}, {row[5]}) {deadTxtP} *\n'
+            person_output += f'\n* {row[3]} {row[2]} ({display_inn}, {row[5]}) {deadTxtP} *\n'
             person_output += f' подання №{row[0]} від {row[1]}. вик.{worker} {t_report} {Vidmova}\n'
 
         if person_output.strip():

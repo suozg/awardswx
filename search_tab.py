@@ -171,7 +171,8 @@ class Tab1Panel(wx.Panel):
                 on_highlight(self.result1, "(ВІДМОВЛЕНО)", stringTab1, wx.Colour(255, 0, 0)) # Червоний колір
             if "(НА РОЗГЛЯДІ)" in stringTab1:
                 on_highlight(self.result1, "(НА РОЗГЛЯДІ)", stringTab1, wx.Colour(0, 255, 0)) # Зелений колір
-
+            if "(невірний)" in stringTab1:
+                on_highlight(self.result1, "(невірний)", stringTab1, wx.Colour(255, 0, 0)) # Червоний колір
             # Формуємо повідомлення для футера на основі результатів
             if len(self.latest_search_results) != int(counts_gid01):
                 message = f"Знайдено ще {len(self.latest_search_results) - counts_gid01} інші особи без подань чи нагород." # Повідомлення про кількість знайдених

@@ -6,12 +6,13 @@ import re
 import wx.lib.scrolledpanel as scrolled # <-- Додайте цей імпорт
 import io
 from PIL import Image, ImageEnhance # Need to import PIL
-from datetime import datetime, timedelta
+from datetime import datetime
 from config import DEF_FUT_LABEL
 from database_logic import (
     get_units_and_ranks, # загрузка списков підрозділів и званий
     get_treedata, # загрузка списка ВСЕХ известних наград из ДОВІДНИК
     search_q,
+    is_valid_INN,
     execute_query
 )
 
@@ -1385,45 +1386,23 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         return button_v_sizer
 
-
-    # --- Методи для обробки ІНН  ---
-    def on_inn_focus_lost(self, event):        
+    def on_inn_focus_lost(self, event):
+        # --- Метод для обробки ІНН ---
         value = self.inn.GetValue()
-        if self.is_valid_INN(value):
-            # Перевіряємо, чи атрибут birtday існує, перш ніж використовувати його
-            if hasattr(self, 'birtday') and self.birtday:
-                self.birtday.SetLabel(f"Дата народження: {self.birth_date}")
-        else:
-            if hasattr(self, 'birtday') and self.birtday:
+        
+        # Викликаємо is_valid_INN і зберігаємо результат (дату народження або повідомлення про помилку)
+        birth_date_or_error = is_valid_INN(value)
+        
+        if hasattr(self, 'birtday') and self.birtday:
+            # Перевіряємо, чи повернулося дійсне значення дати (не "")
+            if birth_date_or_error != "":
+                self.birtday.SetLabel(f"Дата народження: {birth_date_or_error}")
+            else:
                 self.birtday.SetLabel("Невірний РНОКПП")
+                
         # Перевіряємо, чи event не є None, перш ніж викликати event.Skip()
         if event:
             event.Skip()
-
-    def is_valid_INN(self, inn):
-        """ Перевірка РНОКПП та обчислення дати народження """
-        if re.fullmatch(r"\d{10}", inn):
-            try: # Додаємо блок try для обробки можливих помилок при обчисленні дати
-                digits = [int(ch) for ch in inn]
-
-                k1 = (digits[0]*-1) + (digits[1]*5) + (digits[2]*7) + (digits[3]*9) + \
-                     (digits[4]*4) + (digits[5]*6) + (digits[6]*10) + (digits[7]*5) + (digits[8]*7)
-                k2 = k1 % 11
-                k3 = 0 if k2 == 10 else k2
-
-                if digits[9] == k3:
-                    # Вычисление даты рождения
-                    days_to_add = int(inn[:5])
-                    start_date = datetime(1899, 12, 31)
-                    date_and_delta = start_date + timedelta(days=days_to_add)
-                    self.birth_date = date_and_delta.strftime("%Y-%m-%d")
-                    return True
-            except Exception as e:
-                self.birth_date = "---- -- --" # Встановлюємо невірне значення дати
-                return False # Помилка при обчисленні дати також означає невалідний ІНН
-        
-        return False
-
 
     # --- Допоміжні функції для видалення ---
     def select_delete_mode(self, event):
@@ -1472,9 +1451,6 @@ class KartkaPanel(scrolled.ScrolledPanel):
             self.cursor.execute("DELETE FROM personality WHERE id = ?", (self.current_person_id,))
             return True
 
-        except sqlite3.Error as e:
-            wx.MessageBox(f"Помилка бази даних при видаленні особи: {e}", "Помилка БД", wx.OK | wx.ICON_ERROR)
-            return False
         except Exception as e:
             wx.MessageBox(f"Невідома помилка при видаленні особи: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
             return False
@@ -1506,9 +1482,6 @@ class KartkaPanel(scrolled.ScrolledPanel):
             self.cursor.execute("DELETE FROM presentation WHERE id = ?", (self.current_presentation_id,))
             return True
 
-        except sqlite3.Error as e:
-            wx.MessageBox(f"Помилка бази даних при видаленні подання: {e}", "Помилка БД", wx.OK | wx.ICON_ERROR)
-            return False
         except Exception as e:
             wx.MessageBox(f"Невідома помилка при видаленні подання: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
             return False
@@ -1550,9 +1523,6 @@ class KartkaPanel(scrolled.ScrolledPanel):
             
             return True
 
-        except sqlite3.Error as e:
-            wx.MessageBox(f"Помилка бази даних при видаленні нагороди: {e}", "Помилка БД", wx.OK | wx.ICON_ERROR)
-            return False
         except Exception as e:
             wx.MessageBox(f"Невідома помилка при видаленні нагороди: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
             return False
@@ -1596,7 +1566,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
             self.Layout() # Перекомпонування, якщо розмір змістився
 
         except Exception as e:
-            print(f"Помилка оновлення логотипу в KartkaPanel: {e}")
+            self.update_footer_message(f"Помилка оновлення логотипу в KartkaPanel: {e}")
 
 
     # -------------- методи ПОЛУЧЕНИЯ данних из елементов интерфейса --------------------
@@ -1816,7 +1786,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
             date_birth = None
             if "Дата народження:" in date_birth_wx:
                 date_birth = date_birth_wx.split(": ")[1]
-                if date_birth == "---- -- --" or not date_birth:
+                if date_birth == "" or not date_birth:
                     date_birth = None
             else:
                 date_birth = None
@@ -1837,8 +1807,12 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 # Витягуємо лише цифри з введеного ІНН
                 inn_digits_only = re.sub(r'\D', '', inn_str_raw)
 
-                if self.is_valid_INN(inn_digits_only): # Передаємо is_valid_INN лише цифри
-                    # Якщо валідний (і за довжиною, і за контрольною сумою), зберігаємо як число
+                # is_valid_INN повертає дату або порожній рядок
+                # Якщо повертається порожній рядок, значить ІНН недійсний.
+                validation_result = is_valid_INN(inn_digits_only) 
+
+                if validation_result != "": 
+                    # ІНН валідний (і за довжиною, і за контрольною сумою), зберігаємо як число
                     inn = int(inn_digits_only)
                 else:
                     # ІНН не пройшов валідацію.
@@ -1846,7 +1820,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                     msg_body = (
                         f"РНОКПП '{inn_str_raw}' некоректний. Він має бути 10-значним числом.\n\n"
                         f"Знайдено цифри: '{inn_digits_only}'.\n"
-                        f"Бажаєте зберегти РНОКПП як '{inn_digits_only}' (тільки цифри)?"
+                        f"Бажаєте зберегти РНОКПП як '{inn_digits_only}' (тільки цифри), незважаючи на недійсність?"
                     )
                     dialog = wx.MessageDialog(
                         self,
@@ -1858,18 +1832,18 @@ class KartkaPanel(scrolled.ScrolledPanel):
                     dialog.Destroy()
 
                     if response == wx.ID_YES:
-                        # Користувач обрав "Ігнорувати" (зберегти лише цифри)
+                        # Користувач обрав "Так" (зберегти лише цифри, навіть якщо не валідний за контрольною сумою)
                         if inn_digits_only:
                             # Перевіряємо, чи є взагалі цифри для збереження
                             inn = int(inn_digits_only)
                     else:
-                        # Користувач обрав "Не зберігати"
+                        # Користувач обрав "Ні" (не зберігати взагалі)
                         self.update_footer_message("Збереження скасовано через некоректний РНОКПП.")
                         return # Зупиняємо процес збереження
 
             else:
                 # ІНН порожній, дозволяємо зберегти його як NULL
-                inn_to_save = None
+                inn = None # Використовуємо 'inn' замість 'inn_to_save'
 
             try:
                 if self.current_person_id:
@@ -2257,7 +2231,7 @@ class LinkDialog(wx.Frame):
         try:
             # Викликаємо вашу універсальну функцію execute_query
             raw_results = execute_query(self.cursor, sql_query, sql_params)
-        except sqlite3.Error as e:
+        except Exception as e:
             wx.LogError(f"Помилка бази даних: {e}")
             raw_results = []
 
