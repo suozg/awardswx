@@ -16,7 +16,7 @@ from database_logic import (
     execute_query
 )
 
-from ui_utils import load_image_from_blob 
+from ui_utils import load_image_from_blob, AwardSearchHelper
 
 AWARD_IMAGE_SIZE = 80 # размер картинки
 CURRENT_DATA = wx.DateTime.Now()
@@ -63,6 +63,8 @@ class KartkaPanel(scrolled.ScrolledPanel):
         self.award_image_display = None
         self.protok_handing = None
 
+        self._is_programmatic_award_change = False 
+        
         # --- Завантаження початкових даних ЗВАННЯ / ПІДРОЗДІЛ / ВІДОМІ НАГОРОДИ ---
         self._loaded_award_names = [] # назви нагород для комбобокса
         self._loaded_units = []
@@ -381,7 +383,6 @@ class KartkaPanel(scrolled.ScrolledPanel):
         award_selector_sizer.Add(self.award_label_info, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 3)
 
         # Створюємо комбобокс, використовуючи попередньо завантажені назви нагород
-        self.award_ctrl = wx.ComboBox(self, choices=self._loaded_award_names, style=wx.CB_READONLY)
         award_selector_sizer.Add(self.award_ctrl, 1, wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 3)
         self.award_ctrl.Bind(wx.EVT_COMBOBOX, self.on_award_selected)
 
@@ -587,7 +588,17 @@ class KartkaPanel(scrolled.ScrolledPanel):
         if self.meed_ctrl:
             self.meed_ctrl.SetSelection(0)
             #self.meed_ctrl.Clear() 
-        if self.award_ctrl: self.award_ctrl.SetSelection(0)
+
+        if self.award_ctrl and hasattr(self, 'award_search_helper') and self.award_search_helper:
+            self._is_programmatic_award_change = True 
+            try:
+                self.award_search_helper.reset_search()
+            finally:
+                self._is_programmatic_award_change = False
+        elif self.award_ctrl: 
+            self.award_ctrl.SetValue("")
+            self.award_ctrl.SetSelection(0)
+
         if self.award_basis_ctrl: self.award_basis_ctrl.SetValue('')
         if self.award_date_ctrl: self.award_date_ctrl.SetValue(CURRENT_DATA)
         if self.meed_dead_checkbox: self.meed_dead_checkbox.SetValue(False)
@@ -1340,6 +1351,23 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 unique_award_names.sort()
                 self._loaded_award_names = [""] + unique_award_names
 
+                # Перевіряємо, чи award_ctrl вже існує
+                if not hasattr(self, 'award_ctrl') or not self.award_ctrl:
+                    # Якщо не існує, створюємо його (це відбудеться лише при першому виклику)
+                    self.award_ctrl = wx.ComboBox(self, choices=self._loaded_award_names, style=wx.CB_DROPDOWN)
+                    self.award_ctrl.Bind(wx.EVT_COMBOBOX, self.on_award_selected) # Прив'язуємо обробник подій
+                    # Також створюємо AwardSearchHelper лише один раз
+                    self.award_search_helper = AwardSearchHelper(self.award_ctrl)
+                else:
+                    # Якщо вже існує, просто оновлюємо його елементи
+                    self.award_ctrl.Clear()
+                    self.award_ctrl.AppendItems(self._loaded_award_names)
+                    self.award_ctrl.SetSelection(-1) # Скинути вибір
+
+                # Оновлюємо дані в AwardSearchHelper, незалежно від того, чи він щойно створений чи ні
+                if hasattr(self, 'award_search_helper') and self.award_search_helper:
+                    self.award_search_helper.set_award_names(self._loaded_award_names)
+
             else:
                 # Обробка випадку, коли курсор не був створений
                 self._loaded_award_names = ["(Помилка завантаження)"]
@@ -1350,14 +1378,13 @@ class KartkaPanel(scrolled.ScrolledPanel):
             self._loaded_award_names = ["(Помилка завантаження)"]
             wx.MessageBox(f"Загальна помилка при завантаженні даних про нагороди: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
 
-
     def _update_award_combobox(self):
-        # Метод для обновления 
-        if hasattr(self, 'award_ctrl') and self.award_ctrl:
-            self.award_ctrl.Clear()
-            self.award_ctrl.AppendItems(self._loaded_award_names)
-            self.award_ctrl.SetSelection(-1) 
-
+        self._load_award_data() # Це призведе до перезавантаження даних та оновлення комбобокса
+        # Після оновлення даних та комбобокса, можливо, потрібно оновити компонування
+        if hasattr(self, 'Layout'):
+            self.Layout()
+        if hasattr(self, 'SetupScrolling'):
+            self.SetupScrolling()
 
     def create_buttons(self):
         # 1. Змінюємо орієнтацію sizer'а на ВЕРТИКАЛЬНУ

@@ -15,6 +15,109 @@ from PIL import Image
 from PIL import ImageEnhance
 from config import ALL_COLUMN_LABELS
 
+
+#  поиск и отображение списка наград с автоподстановкой
+class AwardSearchHelper:
+    def __init__(self, combo_ctrl, debounce_delay=600, kartka_panel_instance=None):
+        self.combo_ctrl = combo_ctrl
+        self.DEBOUNCE_DELAY_MS = debounce_delay
+        self._loaded_award_names = []
+        self._is_user_typing = False
+        self.search_timer = None
+        self.kartka_panel = kartka_panel_instance # <-- Додано для доступу до прапорця
+
+        self.combo_ctrl.Bind(wx.EVT_TEXT, self.on_text_changed)
+        self.combo_ctrl.Bind(wx.EVT_COMBOBOX, self.on_combo_selected)
+
+    def set_award_names(self, names):
+        self._loaded_award_names = names
+
+    def on_text_changed(self, event):
+        # Якщо зміна програмна, ігноруємо подію
+        if self.kartka_panel and self.kartka_panel._is_programmatic_award_change:
+            event.Skip()
+            return
+
+        self._is_user_typing = True
+        if self.search_timer and self.search_timer.IsRunning():
+            self.search_timer.Stop()
+        self.search_timer = wx.CallLater(self.DEBOUNCE_DELAY_MS, self._perform_search_and_update)
+        event.Skip()
+
+    def on_combo_selected(self, event):
+        if self.search_timer and self.search_timer.IsRunning():
+            self.search_timer.Stop()
+        self._is_user_typing = False
+        selected_value = self.combo_ctrl.GetValue() # Отримуємо вибране значення
+        event.Skip()
+
+    def _perform_search_and_update(self):
+        current_text = self.combo_ctrl.GetValue()
+        if not current_text:
+            filtered = self._loaded_award_names
+        else:
+            filtered = [a for a in self._loaded_award_names if current_text.lower() in a.lower()]
+
+        self.combo_ctrl.Unbind(wx.EVT_TEXT, handler=self.on_text_changed)
+
+        insertion_point = self.combo_ctrl.GetInsertionPoint()
+
+        self.combo_ctrl.SetItems(filtered)
+        self.combo_ctrl.SetValue(current_text)
+        self.combo_ctrl.SetInsertionPoint(insertion_point)
+
+        # Додаємо більш надійну перевірку, чи користувач вже зробив вибір.
+        # Якщо поточний текст є одним із елементів у відфільтрованому списку
+        # І не було активного введення (ми вже завершили друк)
+        is_exact_match_selected = current_text in filtered and len(filtered) == 1
+
+        # Викликаємо Popup(), лише якщо:
+        # 1. Ми в режимі введення (користувач активно друкує)
+        # 2. Є текст для пошуку
+        # 3. Є відфільтровані результати
+        # 4. Поточний текст НЕ є точним збігом, який вже обрано (тобто, користувач все ще шукає, а не вибрав)
+        if self._is_user_typing and current_text and filtered and not is_exact_match_selected:
+            try:
+                self.combo_ctrl.Popup()
+            except Exception:
+                pass
+        else:
+            # Якщо це точний збіг і вибір зроблено, або якщо режим введення вже завершено,
+            # переконайтеся, що випадаючий список закритий.
+            try:
+                self.combo_ctrl.Dismiss() # <-- Явно закриваємо список
+            except Exception:
+                pass
+
+        self.combo_ctrl.Bind(wx.EVT_TEXT, self.on_text_changed)
+        self._is_user_typing = False # Залишаємо тут для скидання після Debounce
+
+    def reset_search(self):
+        # Цей метод викликається ззовні для програмного скидання.
+        # Його мета - очистити текстове поле та відобразити повний список.
+        # Не використовуємо SetValue(""), щоб не генерувати EVT_TEXT.
+        # Натомість, оновлюємо items напряму, якщо потрібно.
+
+        # Забезпечуємо, що _is_user_typing вимкнено
+        self._is_user_typing = False
+        if self.search_timer and self.search_timer.IsRunning():
+            self.search_timer.Stop()
+
+        # Тимчасово відв'язуємо обробник тексту, щоб SetItems не викликав його
+        self.combo_ctrl.Unbind(wx.EVT_TEXT, handler=self.on_text_changed)
+
+        # Очищаємо текстове поле
+        self.combo_ctrl.ChangeValue("") # Використовуємо ChangeValue, щоб не генерувати EVT_TEXT
+
+        # Встановлюємо повний список елементів
+        self.combo_ctrl.SetItems(self._loaded_award_names)
+
+        # Встановлюємо вибір на порожній елемент (індекс 0)
+        self.combo_ctrl.SetSelection(0)
+
+        # Повторно прив'язуємо обробник
+        self.combo_ctrl.Bind(wx.EVT_TEXT, self.on_text_changed)
+
 # ----------------- ЛОГІКА ЗАПИТІВ ДЛЯ ЗВІТІВ
 
 

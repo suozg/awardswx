@@ -15,7 +15,7 @@ from database_logic import (
     get_formatted_unique_awarded_distinctions,
     RankingValues 
 )
-from ui_utils import load_image_from_blob, ReportGeneratorWx
+from ui_utils import load_image_from_blob, ReportGeneratorWx, AwardSearchHelper  
 
 # --- Константи ---
 # Значення для радіокнопок категорії осіб (MeedvarR1_value)
@@ -218,7 +218,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
     def _start_award_names_loading_thread(self, rank_filter=None):
         """Запускає фоновий потік для завантаження назв нагород."""
-        self.update_footer_message("Підготвка списку нагород ...")
+        self.update_footer_message("Підготовка списку нагород ...")
 
         # Перевірка наявності необхідних UI елементів
         if not hasattr(self, 'award_name_combo') or not hasattr(self, 'award_by_name_checkbox'):
@@ -269,11 +269,14 @@ class Tab4Panel(scrolled.ScrolledPanel):
             self.award_name_combo.Clear()
             if self._loaded_award_names:
                 self.award_name_combo.SetItems(self._loaded_award_names)
+                self.award_search_helper.set_award_names(self._loaded_award_names)
 
             # Вмикаємо комбобокс, тільки якщо чекбокс все ще активний
             is_by_name_checked = self.award_by_name_checkbox.GetValue()
             self.award_name_combo.Enable(is_by_name_checked)
             self.update_footer_message(DEF_FUT_LABEL)
+
+
 
 
     # --- Методи побудови інтерфейсу ---
@@ -463,12 +466,14 @@ class Tab4Panel(scrolled.ScrolledPanel):
         award_type_sizer.Add(self.award_by_name_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 10)
 
         # Вибір назви нагороди (заповнюється асинхронно)
-        self.award_name_combo = wx.ComboBox(parent_panel, choices=[], style=wx.CB_READONLY, size=(250, -1))
+        self.award_name_combo = wx.ComboBox(parent_panel, choices=[], style=wx.CB_DROPDOWN, size=(250, -1))
         self.award_name_combo.Enable(False) # Вимкнено за замовчуванням
         self.award_name_combo.Bind(wx.EVT_COMBOBOX, self.on_award_name_selected) # Обробник вибору
         award_type_sizer.Add(self.award_name_combo, 2, wx.EXPAND | wx.LEFT, 3) # Пропорція 2
 
         award_sizer.Add(award_type_sizer, 0, wx.EXPAND | wx.ALL, 5)
+
+        self.award_search_helper = AwardSearchHelper(self.award_name_combo)
 
         # ---- рядок 3 -------
 

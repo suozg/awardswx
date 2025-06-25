@@ -169,7 +169,7 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
 
             # Опционально: раскрыть все категории после заполнения
             # self.tree.ExpandAllChildren(self.root)
-        self.last_message = "--- populate_tree finished ---"
+        self.last_message = DEF_FUT_LABEL
         self.update_footer_message(self.last_message)
 
     
@@ -843,7 +843,6 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
         # --- Метод для ПОВНОГО оновлення списків нагород в КАРТКА ---
         # Цей метод викликається ПІСЛЯ збереження змін про нагороди
         if self.kartka_panel: 
-            self.kartka_panel._load_award_data()
             self.kartka_panel._update_award_combobox()
         
     def update_footer_message(self, message):
