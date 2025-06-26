@@ -40,9 +40,9 @@ def rodovyi_to_znachidnyy(prizvyshe):
         return prizvyshe + "а"
 
 
-class WebSearchPanel(wx.Panel):
+class WebSearchPanel(wx.ScrolledWindow):
     def __init__(self, parent, conn, cursor, fut_place=None):
-        super().__init__(parent)
+        wx.ScrolledWindow.__init__(self, parent, -1) # Инициализация ScrolledWindow
         self.conn = conn
         self.cursor = cursor
         self.fut_place = fut_place
@@ -51,7 +51,8 @@ class WebSearchPanel(wx.Panel):
 
         self.init_ui()
         self.last_message = "Пошук указів про нагородження"
-
+        self.SetScrollbars(1, 1, 0, 0) # Установка скроллбаров (единицы прокрутки, а не пиксели)
+        self.SetTargetWindow(self)
 
     def init_ui(self):
         self.main_sizer = wx.BoxSizer(wx.VERTICAL) # Зробимо main_sizer доступним через self.
@@ -64,7 +65,7 @@ class WebSearchPanel(wx.Panel):
         single_name_sizer.AddGrowableCol(1, 1)
 
         self.label_last_name = wx.StaticText(self, label="ПРІЗВИЩЕ (у знахідному відмінку)")
-        self.entry_last_name = wx.TextCtrl(self, size=(300, -1), style=wx.TE_PROCESS_ENTER)
+        self.entry_last_name = wx.TextCtrl(self, size=(100, -1), style=wx.TE_PROCESS_ENTER)
 
         single_name_sizer.Add(self.label_last_name, 0, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
         single_name_sizer.Add(self.entry_last_name, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
@@ -84,8 +85,8 @@ class WebSearchPanel(wx.Panel):
 
         listbox_group_sizer.Add(listbox_label_sizer, 0, wx.ALIGN_LEFT | wx.LEFT | wx.TOP | wx.BOTTOM, 5)
 
-        self.lbox1 = wx.ListBox(self, size=(300, 250), style=wx.LB_EXTENDED)
-        self.lbox2 = wx.ListBox(self, size=(300, 250), style=wx.LB_EXTENDED)
+        self.lbox1 = wx.ListBox(self, size=(250, 250), style=wx.LB_EXTENDED)
+        self.lbox2 = wx.ListBox(self, size=(250, 250), style=wx.LB_EXTENDED)
 
         listbox_buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.button1 = wx.Button(self, label=">>>", size=(50, -1))
@@ -108,7 +109,7 @@ class WebSearchPanel(wx.Panel):
 
         right_controls_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.spin_label = wx.StaticText(self, label="за рік:")
+        self.spin_label = wx.StaticText(self, label="рік виборки:")
 
         self.button_up = wx.Button(self, label="↑", size=(100, -1))
         self.button_down = wx.Button(self, label="↓", size=(100, -1))
@@ -143,8 +144,6 @@ class WebSearchPanel(wx.Panel):
         top_section_sizer.Add(left_input_section_sizer, 3, wx.EXPAND | wx.ALL, 10)
         top_section_sizer.Add(right_controls_sizer, 1, wx.EXPAND | wx.ALL, 10)
 
-        # -------------------------------------------------------------
-        # Зміни тут:
         # Створюємо сайзер для HtmlWindow
         self.html_results_container = wx.BoxSizer(wx.VERTICAL) # контейнер для HtmlWindow
         self.result_websearch_text = wx.html.HtmlWindow(self)
@@ -156,20 +155,16 @@ class WebSearchPanel(wx.Panel):
         self.progress_bar_container = wx.BoxSizer(wx.VERTICAL) # контейнер для Gauge
         self.progress_gauge = wx.Gauge(self, range=100, style=wx.GA_HORIZONTAL | wx.GA_SMOOTH)
         self.progress_bar_container.Add(self.progress_gauge, 0, wx.EXPAND | wx.ALL, 10)
-        # -------------------------------------------------------------
 
         # Додаємо секції до основного сайзера
         # Зберігаємо SizerItem для top_section_sizer та html_results_container
         # Щоб можна було змінювати їхні пропорції.
-        # Це потрібно, якщо ви плануєте динамічно розширювати top_section_sizer
-        # коли HtmlWindow прихований.
         self.top_section_sizer_item = self.main_sizer.Add(top_section_sizer, 1, wx.EXPAND) # top_section_sizer займе пропорцію 1
         self.html_results_container_item = self.main_sizer.Add(self.html_results_container, 0, wx.EXPAND) # HtmlWindow спочатку прихований, тому пропорція 0
         self.progress_bar_container_item = self.main_sizer.Add(self.progress_bar_container, 0, wx.EXPAND) # Прогрес-бар завжди внизу, пропорція 0
 
         self.SetSizer(self.main_sizer)
 
-        # -------------------------------------------------------------
         # Початкове приховування елементів
         self.button_stop.Hide()
         
@@ -177,7 +172,6 @@ class WebSearchPanel(wx.Panel):
         # Пропорція вже 0 на цьому етапі, тому не потрібно встановлювати знову
         
         self.progress_bar_container.ShowItems(False) # Приховуємо контейнер прогрес-бара
-        # -------------------------------------------------------------
 
         self.update_years()
         self.Layout() # Оновлюємо макет після ініціалізації
@@ -206,8 +200,6 @@ class WebSearchPanel(wx.Panel):
 
     def refresh_tree(self):
         self.lbox1.Clear()
-        
-        # Перевіряємо стан чекбокса
         # self.checkbox_posthumous.GetValue() повертає True, якщо відзначено, і False, якщо ні
         is_posthumous_only = self.checkbox_posthumous.GetValue()
 
