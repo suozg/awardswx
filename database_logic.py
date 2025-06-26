@@ -540,10 +540,9 @@ def delete_award_from_db(conn, cursor, award_id):
 
 def get_formatted_unique_awarded_distinctions(cursor, rank_filter=None):
     """
-    Завантажує дані нагороджених відзнак, форматує їх за шаблоном 'ранг - назва [ID]'
+    Завантажує дані нагород, якими ВЖЕ нагороджувались в/с, 
+    форматує їх за шаблоном 'ранг - назва [ID]'
     та повертає список унікальних відформатованих рядків.
-    Приймає об'єкт курсора БД.
-    Повертає список унікальних відформатованих рядків.
     Піднімає виняток у випадку помилки БД.
     """
     formatted_list = []
@@ -554,7 +553,7 @@ def get_formatted_unique_awarded_distinctions(cursor, rank_filter=None):
         try:
             rank_number_filter = RankingValues.index(rank_filter)
         except ValueError:
-            print(f"Попередження: Ранг '{rank_filter}' не знайдено у списку рангів.")
+            raise RuntimeError(f"Попередження: Ранг '{rank_filter}' не знайдено у списку рангів.")
 
     try:
         query = """

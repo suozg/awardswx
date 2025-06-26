@@ -114,18 +114,18 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         # Використовуємо load_image_from_blob для створення Bitmap з логотипу
         try:
-             # Додайте перевірку, чи load_image_from_blob імпортовано
-             if 'load_image_from_blob' in globals():
-                  default_logo_bitmap = load_image_from_blob(
-                      logo_blob,
-                      max_dim=AWARD_IMAGE_SIZE
-                      # Можна додати grayscale=True або brightness_factor=... якщо лого має бути фоновим
-                  )
-             else:
-                 default_logo_bitmap = None # Залишаємо None або створюємо помилковий bitmap
+            # Додайте перевірку, чи load_image_from_blob імпортовано
+            if 'load_image_from_blob' in globals():
+                default_logo_bitmap = load_image_from_blob(
+                    logo_blob,
+                    max_dim=AWARD_IMAGE_SIZE
+                    # Можна додати grayscale=True або brightness_factor=... якщо лого має бути фоновим
+                )
+            else:
+                default_logo_bitmap = None # Залишаємо None або створюємо помилковий bitmap
 
         except Exception as e:
-             default_logo_bitmap = None # У випадку помилки
+            default_logo_bitmap = None # У випадку помилки
 
         # Перевіряємо, чи отримали валідний Bitmap логотипу. Якщо ні, створюємо простий порожній fallback.
         if default_logo_bitmap and default_logo_bitmap.IsOk():

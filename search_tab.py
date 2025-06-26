@@ -6,16 +6,15 @@ import wx.richtext # Модуль для роботи з розширеним т
 # Імпортуємо конфігураційні дані та логіку бази даних
 from config import START_YEAR, DEF_FUT_LABEL, SHOW_MORE_IMAGES
 from database_logic import (
-    search_q, get_service_settings_data, 
+    search_q, get_service_settings_data,
     get_award_image_blobs_for_search
 )
 from graph import AwardGraphPanel # Панель для відображення графіка нагород
 from ui_utils import (
-    load_image_from_blob, 
+    load_image_from_blob,
     on_highlight
 )
-from settings_manager import ServiceSettingsManager 
-
+from settings_manager import ServiceSettingsManager
 
 class Tab1Panel(wx.Panel):
     """
@@ -34,6 +33,20 @@ class Tab1Panel(wx.Panel):
         self.last_message = "" # Змінна для зберігання останнього повідомлення футера
         self.element_controls = [] # Список для зберігання елементів керування, які потрібно очищати
         self.image_sizer_undo_result1 = None # Змінна для зберігання сайзера зображень для можливості його видалення
+
+        # Головний сайзер для всієї панелі
+        self.main_panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(self.main_panel_sizer)
+
+        # Створюємо ScrolledWindow, в якому буде розміщено весь вміст, що прокручується
+        self.scroll_win = wx.ScrolledWindow(self, wx.ID_ANY)
+        self.scroll_win.SetScrollRate(20, 20) # Встановлюємо швидкість прокрутки (px/крок)
+        self.main_panel_sizer.Add(self.scroll_win, 1, wx.EXPAND | wx.ALL, 0) # Додаємо ScrolledWindow до головного сайзера
+
+        # Створюємо сайзер для вмісту всередині ScrolledWindow
+        self.content_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.scroll_win.SetSizer(self.content_sizer)
+
         self.init_ui() # Ініціалізуємо користувацький інтерфейс
         self.Bind(wx.EVT_WINDOW_DESTROY, self.OnDestroy)
 
@@ -45,31 +58,27 @@ class Tab1Panel(wx.Panel):
     # --- Методи построения интерфейса вкладки ---
     def init_ui(self):
         """Ініціалізує елементи користувацького інтерфейсу панелі."""
+        # Усі елементи, які раніше додавалися до self.sizer1, тепер будуть додаватися до self.content_sizer
         # Поле для введення пошукового запиту
-        self.entry1 = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
+        self.entry1 = wx.TextCtrl(self.scroll_win, style=wx.TE_PROCESS_ENTER) # Змінено батьківський елемент
         self.entry1.SetValue("")
         # Прив'язуємо обробник події натискання Enter у полі введення до методу on_search_button
         self.entry1.Bind(wx.EVT_TEXT_ENTER, self.on_search_button)
 
         # Статичний текст заголовка панелі
-        title1 = wx.StaticText(self, label="ГЕРОЯМ - СЛАВА!")
+        title1 = wx.StaticText(self.scroll_win, label="ГЕРОЯМ - СЛАВА!") # Змінено батьківський елемент
         # Прив'язуємо обробник події кліка по заголовку до методу on_t_sizer_click
         title1.Bind(wx.EVT_LEFT_DOWN, self.on_t_sizer_click)
 
         # Кнопка для виконання пошуку
-        button1 = wx.Button(self, label="Пошук")
+        button1 = wx.Button(self.scroll_win, label="Пошук") # Змінено батьківський елемент
         # Прив'язуємо обробник події натискання кнопки до методу on_search_button
         button1.Bind(wx.EVT_BUTTON, self.on_search_button)
 
         # Кнопка для очищення результатів
-        button2 = wx.Button(self, label="Очистити")
+        button2 = wx.Button(self.scroll_win, label="Очистити") # Змінено батьківський елемент
         # Прив'язуємо обробник події натискання кнопки до методу clear_tab1
         button2.Bind(wx.EVT_BUTTON, self.clear_tab1)
-
-        # Головний сайзер (вертикальний) для розташування елементів
-        self.sizer1 = wx.BoxSizer(wx.VERTICAL)
-        # Додаємо заголовок до головного сайзера з вирівнюванням по центру
-        self.sizer1.Add(title1, 0, wx.CENTER | wx.ALL, 5)
 
         # Горизонтальний сайзер для поля вводу та кнопок
         h_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -80,7 +89,11 @@ class Tab1Panel(wx.Panel):
         # Додаємо кнопку "Очистити"
         h_sizer.Add(button2, 0, wx.ALL, 5)
         # Додаємо горизонтальний сайзер до головного сайзера (розширюється по горизонталі)
-        self.sizer1.Add(h_sizer, 0, wx.EXPAND | wx.ALL, 10)
+        self.content_sizer.Add(h_sizer, 0, wx.EXPAND | wx.ALL, 10) # Додаємо до content_sizer
+
+        # Додаємо заголовок до content_sizer
+        self.content_sizer.Add(title1, 0, wx.CENTER | wx.ALL, 5)
+
 
         # Додати зображення лого
         logo_bitmap = None
@@ -102,24 +115,25 @@ class Tab1Panel(wx.Panel):
 
         # Создаем контрол wx.StaticBitmap для отображения логотипа
         if logo_bitmap and logo_bitmap.IsOk():
-            self.logo_display = wx.StaticBitmap(self, wx.ID_ANY, logo_bitmap)
+            self.logo_display = wx.StaticBitmap(self.scroll_win, wx.ID_ANY, logo_bitmap) # Змінено батьківський елемент
         else:
             # Placeholder, если логотип не загружен или невалиден
-            self.logo_display = wx.StaticBitmap(self, size=(300, 300)) # Используем тот же размер, что и желаемый max_dim
+            self.logo_display = wx.StaticBitmap(self.scroll_win, size=(300, 300)) # Змінено батьківський елемент
 
-        # Добавляем контрол логотипа в главный сайзер панели
+        # Добавляем контрол логотипа в content_sizer панели
         self.logo_display.Bind(wx.EVT_LEFT_DOWN, self.on_t_sizer_click)
-        self.sizer1.Add(self.logo_display, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        self.content_sizer.Add(self.logo_display, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         # Поле RichTextCtrl для відображення результатів пошуку
-        self.result1 = wx.richtext.RichTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH2 | wx.TE_READONLY)
+        self.result1 = wx.richtext.RichTextCtrl(self.scroll_win, style=wx.TE_MULTILINE | wx.TE_RICH2 | wx.TE_READONLY) # Змінено батьківський елемент
         # Приховуємо поле результатів за замовчуванням
         self.result1.Hide()
-        # Додаємо поле результатів до головного сайзера (розтягується)
-        self.sizer1.Add(self.result1, 1, wx.ALL | wx.EXPAND, 10)
+        # Додаємо поле результатів до content_sizer (розтягується)
+        self.content_sizer.Add(self.result1, 1, wx.ALL | wx.EXPAND, 10)
 
-        # Встановлюємо головний сайзер для панелі
-        self.SetSizer(self.sizer1)
+        # Встановлюємо сайзер для ScrolledWindow
+        self.scroll_win.SetSizerAndFit(self.content_sizer)
+
 
     def refresh_logo(self):
         """Перезагружает логотип из базы данных и обновляет отображение."""
@@ -152,7 +166,7 @@ class Tab1Panel(wx.Panel):
         self.clear_tab1()
 
         message = DEF_FUT_LABEL # Початкове повідомлення
-        self.latest_search_results = [] # Очищаємо попередні результати 
+        self.latest_search_results = [] # Очищаємо попередні результати
         self.source_data_award_and_presentation = {} # очищаємо список СИРИХ даних
 
         try:
@@ -184,35 +198,35 @@ class Tab1Panel(wx.Panel):
                 #    та знищіть. Це знищить і всі StaticBitmap всередині нього.
                 if hasattr(self, 'image_sizer_undo_result1') and self.image_sizer_undo_result1:
                     try:
-                        if self.sizer1.GetItem(self.image_sizer_undo_result1):
-                            self.sizer1.Remove(self.image_sizer_undo_result1)
+                        if self.content_sizer.GetItem(self.image_sizer_undo_result1): # Змінено на content_sizer
+                            self.content_sizer.Remove(self.image_sizer_undo_result1)
                         self.image_sizer_undo_result1.Clear(True)
                     except RuntimeError:
                         pass  # або логування
 
-                    self.image_sizer_undo_result1 = None  
-                
+                    self.image_sizer_undo_result1 = None
+
                 # 2. Створюємо НОВИЙ сайзер для майбутніх зображень
                 self.image_sizer_undo_result1 = wx.BoxSizer(wx.HORIZONTAL)
-                # Додаємо його до головного сайзера self.sizer1
-                self.sizer1.Add(self.image_sizer_undo_result1, 0, wx.ALIGN_CENTER | wx.ALL, 10)
+                # Додаємо його до content_sizer
+                self.content_sizer.Add(self.image_sizer_undo_result1, 0, wx.ALIGN_CENTER | wx.ALL, 10)
 
                 # Если есть бинарные данные изображений (список BLOBов не пуст)
                 if image_blobs:
                     blobs_to_show = [image_blobs[0]] if SHOW_MORE_IMAGES is None else image_blobs
-                    desired_max_dimension = 100 
+                    desired_max_dimension = 100
 
                     for blob in blobs_to_show:
-                        bitmap = load_image_from_blob(blob, max_dim=desired_max_dimension) 
-                        img_ctrl = wx.StaticBitmap(self.result1.GetParent(), bitmap=bitmap)
+                        bitmap = load_image_from_blob(blob, max_dim=desired_max_dimension)
+                        img_ctrl = wx.StaticBitmap(self.scroll_win, bitmap=bitmap) # Змінено батьківський елемент
                         self.image_sizer_undo_result1.Add(img_ctrl, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
-                self.sizer1.Layout()
+                self.scroll_win.Layout() # Оновлюємо розташування в ScrolledWindow
 
             except RuntimeError as err:
                 wx.MessageBox(f"Помилка при отриманні або обробці зображень: {err}", "Помилка", wx.OK | wx.ICON_ERROR)
-                if self.sizer1: # Перевірка на всякий випадок, якщо sizer1 вже знищений
-                     self.sizer1.Layout()
+                if self.content_sizer: # Перевірка на всякий випадок
+                     self.scroll_win.Layout()
 
         except Exception as e:
             wx.MessageBox(f"Помилка пошуку: {e}", "Помилка", wx.OK | wx.ICON_ERROR)
@@ -227,7 +241,8 @@ class Tab1Panel(wx.Panel):
         # Показуємо поле результатів
         self.result1.Show()
         # Оновлюємо розташування елементів на панелі
-        self.sizer1.Layout()
+        self.scroll_win.Layout() # Оновлюємо розташування в ScrolledWindow
+        self.scroll_win.FitInside() # Важливо для коректної роботи прокрутки
 
         self.skip_next_population = False  # для метод очистки КАРТКА (false - не чистить)
 
@@ -238,9 +253,9 @@ class Tab1Panel(wx.Panel):
         self.clear_tab1()
         self.logo_display.Show(False)
         # Створюємо панель з графіком нагород
-        self.graph_panel = AwardGraphPanel(self, self.cursor, START_YEAR, self.element_controls)
-        # Додаємо панель графіка до головного сайзера (розтягується)
-        self.sizer1.Add(self.graph_panel, 1, wx.ALL | wx.EXPAND, 10)
+        self.graph_panel = AwardGraphPanel(self.scroll_win, self.cursor, START_YEAR, self.element_controls) # Змінено батьківський елемент
+        # Додаємо панель графіка до content_sizer (розтягується)
+        self.content_sizer.Add(self.graph_panel, 1, wx.ALL | wx.EXPAND, 10)
         # Додаємо панель графіка до списку для подальшого очищення
         self.element_controls.append(self.graph_panel)
 
@@ -253,7 +268,8 @@ class Tab1Panel(wx.Panel):
             self.fut_place.SetLabel(self.last_message)
 
         # Оновлюємо розташування елементів на панелі
-        self.sizer1.Layout()
+        self.scroll_win.Layout() # Оновлюємо розташування в ScrolledWindow
+        self.scroll_win.FitInside() # Важливо для коректної роботи прокрутки
 
 
     def clear_tab1(self, event=None):
@@ -269,14 +285,15 @@ class Tab1Panel(wx.Panel):
 
         # Якщо існує сайзер зображень, видаляємо його
         if self.image_sizer_undo_result1 is not None:
-            # Від'єднуємо сайзер від головного сайзера
-            self.sizer1.Detach(self.image_sizer_undo_result1)
+            # Від'єднуємо сайзер від content_sizer
+            self.content_sizer.Detach(self.image_sizer_undo_result1)
             # Очищаємо сам сайзер (видаляємо з нього елементи)
             self.image_sizer_undo_result1.Clear(True)
             # Обнуляємо посилання на сайзер зображень
             self.image_sizer_undo_result1 = None
             # Оновлюємо розташування елементів
-            self.Layout()
+            self.scroll_win.Layout() # Оновлюємо розташування в ScrolledWindow
+
 
         # Приховуємо поле результатів
         self.result1.Hide()
@@ -284,7 +301,7 @@ class Tab1Panel(wx.Panel):
         self.result1.Clear()
         self.logo_display.Show(True)
 
-        # Встановлюємо текст за замовчуванням у футері 
+        # Встановлюємо текст за замовчуванням у футері
         # візуально
         if self.fut_place:
             self.fut_place.SetLabel(DEF_FUT_LABEL)
@@ -292,7 +309,8 @@ class Tab1Panel(wx.Panel):
         self.last_message = DEF_FUT_LABEL
 
         # Оновлюємо розташування елементів на панелі
-        self.sizer1.Layout()
+        self.scroll_win.Layout() # Оновлюємо розташування в ScrolledWindow
+        self.scroll_win.FitInside() # Важливо для коректної роботи прокрутки
 
         self.skip_next_population = True  #  для очистки КАРТКА
 
