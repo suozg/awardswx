@@ -2016,30 +2016,35 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 return
 
             # --- Логіка прив'язування подання та нагороди (після успішного збереження) ---
-            # Якщо ми не в режимі видалення І немає відв'язування/відмови І є номер подання/нагорода
+            # 1 Якщо ми не в режимі видалення 
+            # 2.Якщо не вибраний/і чекбокс/и відв'язування/відмови 
+            # 3.Якщо є номер подання/нагородження
             link_dialog_was_shown = False
             if not delete_mode_on and \
-               not self.pres_unlink_meed_checkbox.IsShown() and \
-               not collected_data['submission']['submission_denied']:
-                
-                if collected_data['submission']['submission_number'] != "" or \
-                    collected_data['award']['award_basis'] != "":
+                not self.pres_unlink_meed_checkbox.IsShown() and \
+                not collected_data['submission']['submission_denied']:
+                temp_link_dialog = LinkDialog(None, self.conn, self.cursor, initial_query=[self.current_person_id, self.current_meed_id, self.current_presentation_id])
+                raw_results, label_str = temp_link_dialog._get_linkable_records(
+                    self.current_person_id, self.current_presentation_id, self.current_meed_id
+                )
+                temp_link_dialog.Destroy() # Важливо знищити тимчасовий об'єкт
+
+                if raw_results: # Тільки якщо є дані для прив'язки
                     initial_query = [self.current_person_id, self.current_meed_id, self.current_presentation_id]
                     link_frame = LinkDialog(
-                        parent_panel=self, 
-                        conn=self.conn, 
-                        cursor=self.cursor, 
-                        initial_query=initial_query, 
+                        parent_panel=self,
+                        conn=self.conn,
+                        cursor=self.cursor,
+                        initial_query=initial_query,
                         target_field=None
                     )
                     link_frame.Centre()
                     link_frame.Show()
                     link_dialog_was_shown = True
-            
+
             if not link_dialog_was_shown:
                 self.trigger_search_in_tab1_and_load_results()
 
-            # Update footer message regardless of save/delete
             self.update_footer_message("Операція збереження завершена.")
 
 
@@ -2208,15 +2213,18 @@ class LinkDialog(wx.Frame):
         # Логіка початкового завантаження даних
         self.load_initial_data()
 
-
-    def load_initial_data(self):
+    def _get_linkable_records(self, person_id, presentation_id, meed_id):
+        """
+        Виконує запит до бази даних для пошуку записів, які можна прив'язати.
+        Повертає список результатів.
+        """
         sql_query = ""
         sql_params = None
+        label_str = ""
 
-        if self.presentation_id is not None:
-            self.label_str = "(нагородження)"
-            # Якщо обрано подання (presentation_id присутній), шукаємо нагородження на цю особу,
-            # які можна прив'язати.
+        if presentation_id is not None:
+            label_str = "(нагородження)"
+            # Шукаємо нагородження на цю особу, які ще не прив'язані до подання
             sql_query = """
                 SELECT m.id, m.decree, m.date_decree
                 FROM meed AS m
@@ -2227,27 +2235,67 @@ class LinkDialog(wx.Frame):
                     WHERE p.id_meed = m.id
                 )
             """
-            sql_params = (self.person_id,) # Параметри як кортеж
-        
-        elif self.meed_id is not None:
-            self.label_str = "(подання)"
-            # Якщо обрано нагородження (meed_id присутній), шукаємо подання на цю особу,
-            # які ще не прив'язані до нагородження.
+            sql_params = (person_id,)
+
+        elif meed_id is not None:
+            label_str = "(подання)"
+            # Шукаємо подання на цю особу, які ще не прив'язані до нагородження
             sql_query = """
                 SELECT id, registration, date_registration
                 FROM presentation
                 WHERE id_meed IS NULL
-                AND id_personality = ? 
+                AND id_personality = ?
             """
-            sql_params = (self.person_id,) # Параметри як кортеж
-
+            sql_params = (person_id,)
         else:
-            self.label.SetLabel("Недостатньо даних для пошуку.")
+            return [], "" # Повертаємо порожній список і пустий label_str, якщо немає критеріїв
+
+        if not self.cursor:
+            wx.MessageBox("Не вдалося підключитися до бази даних (курсор відсутній).", "Помилка", wx.ICON_ERROR)
+            return [], ""
+
+        try:
+            raw_results = execute_query(self.cursor, sql_query, sql_params)
+            return raw_results, label_str
+        except Exception as e:
+            wx.LogError(f"Помилка бази даних під час пошуку прив'язуваних записів: {e}")
+            return [], "" # У випадку помилки повертаємо порожній список
+
+
+    def load_initial_data(self):
+        raw_results, self.label_str = self._get_linkable_records(
+            self.person_id,
+            self.presentation_id,
+            self.meed_id
+        )
+
+        final_display_values = []
+        if raw_results:
+            items_to_sort = []
+            for row in raw_results:
+                display_string = f"{row[1]} від {row[2]}"
+                items_to_sort.append((display_string, row[0]))
+
+            items_to_sort.sort(key=lambda x: x[0])
+
+            final_display_values = [item[0] for item in items_to_sort]
+            self.results_data = [item[1] for item in items_to_sort]
+
+            final_display_values.insert(0, "")
+            self.results_data.insert(0, None)
+
+            self.combo.Set(final_display_values)
+            self.label.SetLabel(f"Знайдено {len(self.results_data) - 1} записів {self.label_str}")
+            self.combo.SetSelection(0)
+            self.combo.Show()
+            self.Layout()
+        else:
+            self.label.SetLabel("Немає записів для прив'язки." if self.label_str else "Недостатньо даних для пошуку.")
             self.combo.Hide()
             self.Layout()
-            return # Виходимо, якщо немає чіткого запиту
-
-        self.on_search(sql_query, sql_params)
+            # Додаємо тут закриття вікна, якщо немає даних для відображення
+            # або залишаємо його відкритим з повідомленням "Немає записів"
+            # self.on_cancel_button_click(None) 
 
 
     def on_search(self, sql_query, sql_params):
