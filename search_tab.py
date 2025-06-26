@@ -206,7 +206,7 @@ class Tab1Panel(wx.Panel):
 
                     self.image_sizer_undo_result1 = None
 
-                # 2. Створюємо НОВИЙ сайзер для майбутніх зображень
+                # 2. Створюємо місце для майбутніх зображень
                 self.image_sizer_undo_result1 = wx.BoxSizer(wx.HORIZONTAL)
                 # Додаємо його до content_sizer
                 self.content_sizer.Add(self.image_sizer_undo_result1, 0, wx.ALIGN_CENTER | wx.ALL, 10)
@@ -216,10 +216,21 @@ class Tab1Panel(wx.Panel):
                     blobs_to_show = [image_blobs[0]] if SHOW_MORE_IMAGES is None else image_blobs
                     desired_max_dimension = 100
 
-                    for blob in blobs_to_show:
+                    for i, blob in enumerate(blobs_to_show):
+                        # Створюємо вертикальний сайзер для кожної пари (номер + зображення)
+                        column_sizer = wx.BoxSizer(wx.VERTICAL)
+
+                        # Додаємо порядковий номер до вертикального сайзера
+                        num_label = wx.StaticText(self.scroll_win, label=f"{i + 1}.")
+                        column_sizer.Add(num_label, 0, wx.ALIGN_CENTER | wx.ALL, 2)
+
+                        # Додаємо зображення до вертикального сайзера
                         bitmap = load_image_from_blob(blob, max_dim=desired_max_dimension)
-                        img_ctrl = wx.StaticBitmap(self.scroll_win, bitmap=bitmap) # Змінено батьківський елемент
-                        self.image_sizer_undo_result1.Add(img_ctrl, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+                        img_ctrl = wx.StaticBitmap(self.scroll_win, bitmap=bitmap)
+                        column_sizer.Add(img_ctrl, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+                        # Додаємо вертикальний сайзер (стовпець) до основного горизонтального сайзера
+                        self.image_sizer_undo_result1.Add(column_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
                 self.scroll_win.Layout() # Оновлюємо розташування в ScrolledWindow
 
