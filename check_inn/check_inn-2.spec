@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['check_inn.py'],
-    pathex=[],
+    ['awards/scripts/check_inn-2.py'],
+    pathex=['/usr/lib/python3/dist-packages'],
     binaries=[],
     datas=[],
     hiddenimports=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='check_inn',
+    name='check_inn-2',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

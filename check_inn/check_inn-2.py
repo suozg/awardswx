@@ -33,9 +33,7 @@ def check_rnokpp(text): # Змінено check_inn на check_rnokpp для яс
     Повертає список помилок, а також список коректних РНОКПП та їхню дату народження.
     """
     results = {"errors": [], "valid": []} # valid міститиме кортежі (РНОКПП, Дата)
-
     
-    #weights = [7, 1, 2, 4, 3, 5, 10, 9, 7] 
     weights = [ -1, 5, 7, 9, 4, 6, 10, 5, 7]
     
     # Пошук 10-значных чисел
@@ -62,6 +60,30 @@ def check_rnokpp(text): # Змінено check_inn на check_rnokpp для яс
 
     return results
 
+def process_odt(file_path):
+    from odf.opendocument import load
+    from odf.text import P
+    from odf.table import Table, TableRow, TableCell
+    total_checked = 0
+    total_errors = 0
+
+    try:
+        doc = load(file_path)
+    except Exception as e:
+        print(f"Помилка при відкритті файла ODT/ODS: {e}")
+        return
+    
+    for elem in doc.getElementsByType(P):
+        result = check_rnokpp(elem) 
+        total_checked += len(result["valid"]) + len(result["errors"])
+        total_errors += len(result["errors"])
+        for error in result["errors"]:
+            print(f"==> ERROR: {error}")
+        for valid, date in result["valid"]: 
+            print(f"ok: {valid} (Дата нар.: {date})") 
+
+    print(f"Усього РНОКПП перевірено: {total_checked}, з помилками: {total_errors}")
+
 def process_docx(file_path):
     import docx
     total_checked = 0
@@ -75,12 +97,11 @@ def process_docx(file_path):
 
     # Перевірка параграфів
     for paragraph in doc.paragraphs:
-        result = check_rnokpp(paragraph.text) # Змінено check_inn на check_rnokpp
+        result = check_rnokpp(paragraph.text) 
         total_checked += len(result["valid"]) + len(result["errors"])
         total_errors += len(result["errors"])
         for error in result["errors"]:
             print(f"==> ERROR: {error}")
-        # ВИПРАВЛЕНО: Вивід тепер відображає дату
         for valid, date in result["valid"]: 
             print(f"ok: {valid} (Дата нар.: {date})") 
 
@@ -88,16 +109,14 @@ def process_docx(file_path):
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
-                result = check_rnokpp(cell.text) # Змінено check_inn на check_rnokpp
+                result = check_rnokpp(cell.text) 
                 total_checked += len(result["valid"]) + len(result["errors"])
                 total_errors += len(result["errors"])
                 for error in result["errors"]:
                     print(f"==> ERROR: {error}")
-                # ВИПРАВЛЕНО: Вивід тепер відображає дату
                 for valid, date in result["valid"]:
                     print(f"ok: {valid} (Дата нар.: {date})")
 
-    print(f"\n--- Звіт DOCX ---")
     print(f"Усього РНОКПП перевірено: {total_checked}, з помилками: {total_errors}")
 
 
@@ -136,7 +155,6 @@ def process_xls(file_path):
             for valid, date in result["valid"]:
                 print(f"ok: {valid} (Дата нар.: {date})")
 
-    print(f"\n--- Звіт XLS ---")
     print(f"Усього РНОКПП перевірено: {total_checked}, Помилок: {total_errors}")
 
 def process_xlsx(file_path):
@@ -176,12 +194,16 @@ def process_xlsx(file_path):
             for valid, date in result["valid"]:
                 print(f"ok: {valid} (Дата нар.: {date})")
 
-    print(f"\n--- Звіт XLSX ---")
     print(f"Усього РНОКПП перевірено: {total_checked}, Помилок: {total_errors}")
 
 def main():
+    if getattr(sys, 'frozen', False):
+        program_path = sys.executable
+    else:
+        program_path = os.path.abspath(__file__)
+	
     if len(sys.argv) != 2:
-        print(f"Використання: {__file__} <файл>")
+        print(f"Використання: {program_path} <файл>")
         sys.exit(1)
 
     file_path = sys.argv[1]
@@ -191,10 +213,12 @@ def main():
         process_docx(file_path)
     elif extension == ".xls":
         process_xls(file_path)
+    elif extension == ".odt" or extension == ".ods":
+        process_odt(file_path)
     elif extension == ".xlsx":
         process_xlsx(file_path)
     else:
-        print("Не той файл (тільки doc, docx, xls, xlsx).")
+        print("Не той формат (тільки doc, docx, xls, xlsx).")
         sys.exit(1)
 
 if __name__ == "__main__":
