@@ -24,7 +24,7 @@ class AwardSearchHelper:
         self._loaded_award_names = []
         self._is_user_typing = False
         self.search_timer = None
-        self.kartka_panel = kartka_panel_instance # <-- Додано для доступу до прапорця
+        self.kartka_panel = kartka_panel_instance 
 
         self.combo_ctrl.Bind(wx.EVT_TEXT, self.on_text_changed)
         self.combo_ctrl.Bind(wx.EVT_COMBOBOX, self.on_combo_selected)
@@ -849,11 +849,11 @@ def build_query(filters, zvit_fields):
     if is_issue_protocols_filter:
         try:
             target_ranks_for_protocol_indices.append(RankingValues.index("Найвища"))
-            target_ranks_for_protocol_indices.append(RankingValues.index("Президент"))
-            target_ranks_for_protocol_indices.append(RankingValues.index("МОУ/ГК/ГШ"))
+            target_ranks_for_protocol_indices.append(RankingValues.index("Державні"))
+            target_ranks_for_protocol_indices.append(RankingValues.index("Відомчі"))
         except ValueError:
             target_ranks_for_protocol_indices = [] # Очистити список, щоб не застосовувати фільтр
-
+        print(target_ranks_for_protocol_indices) 
     # --- Основна логіка фільтрації нагород по РАНГУ та протоколам ---
     if is_issue_protocols_filter and target_ranks_for_protocol_indices:
         # Якщо чекбокс "Протоколи видачі" активний, формуємо складну умову

@@ -180,9 +180,11 @@ class Tab1Panel(wx.Panel):
                 if f"{search_query}".lower() in stringTab1.lower():
                     on_highlight(self.result1, f"{search_query}".lower(), stringTab1.lower(), wx.Colour(255, 255, 0)) # Жовтий колір
 
-            # Виділяємо статуси "ВІДМОВЛЕНО" та "НА РОЗГЛЯДІ" різними кольорами
+            # Виділяємо статуси різними кольорами
             if "(ВІДМОВЛЕНО)" in stringTab1:
                 on_highlight(self.result1, "(ВІДМОВЛЕНО)", stringTab1, wx.Colour(255, 0, 0)) # Червоний колір
+            if "не вручено" in stringTab1:
+                on_highlight(self.result1, "не вручено", stringTab1, wx.Colour(0, 0, 255)) # Синій колір
             if "(НА РОЗГЛЯДІ)" in stringTab1:
                 on_highlight(self.result1, "(НА РОЗГЛЯДІ)", stringTab1, wx.Colour(0, 255, 0)) # Зелений колір
             if "(невірний)" in stringTab1:

@@ -82,10 +82,10 @@ class KartkaPanel(scrolled.ScrolledPanel):
             if self.cursor:
                 # 1. Завантажуємо дані рангів та підрозділів
                 self._loaded_ranks, self._loaded_units = get_units_and_ranks(self.cursor)
-                self._loaded_ranks = [rank for rank in self._loaded_ranks if rank != ""]  # 1. Видаляємо усі існуючі порожні рядки зі списку
-                self._loaded_ranks.insert(0, "")  # 2. Додаємо один порожній рядок на початок списку
-                self._loaded_units = [unit for unit in self._loaded_units if unit != ""] # 1. Видаляємо усі існуючі порожні рядки зі списку
-                self._loaded_units.insert(0, "") # 2. Додаємо один порожній рядок на початок списку
+                self._loaded_ranks = [rank for rank in self._loaded_ranks if rank != ""]  
+                self._loaded_ranks.insert(0, "")  
+                self._loaded_units = [unit for unit in self._loaded_units if unit != ""] 
+                self._loaded_units.insert(0, "") 
             else:
                 # Обробка випадку, коли курсор не був створений
                 self._loaded_units = ["(Помилка завантаження)"]
@@ -102,19 +102,17 @@ class KartkaPanel(scrolled.ScrolledPanel):
         self._load_award_data() # завантажуємо дані про нагороди
 
         # --- Завантаження стандартного зображення (логотипу) для панелі нагород ---
-        self.default_award_bitmap = None # Атрибут для стандартного зображення (логотипу)
+        self.default_award_bitmap = None 
         default_logo_bitmap = None
         logo_blob = None
 
         # Перевіряємо, що settings_manager існує і налаштування завантажені
         if self.settings_manager and hasattr(self.settings_manager, 'is_loaded') and self.settings_manager.is_loaded:
-            # Припускаємо, що get_logo_blob існує в settings_manager
             if hasattr(self.settings_manager, 'get_logo_blob'):
                  logo_blob = self.settings_manager.get_logo_blob()
 
         # Використовуємо load_image_from_blob для створення Bitmap з логотипу
         try:
-            # Додайте перевірку, чи load_image_from_blob імпортовано
             if 'load_image_from_blob' in globals():
                 default_logo_bitmap = load_image_from_blob(
                     logo_blob,
@@ -122,10 +120,10 @@ class KartkaPanel(scrolled.ScrolledPanel):
                     # Можна додати grayscale=True або brightness_factor=... якщо лого має бути фоновим
                 )
             else:
-                default_logo_bitmap = None # Залишаємо None або створюємо помилковий bitmap
+                default_logo_bitmap = None 
 
         except Exception as e:
-            default_logo_bitmap = None # У випадку помилки
+            default_logo_bitmap = None 
 
         # Перевіряємо, чи отримали валідний Bitmap логотипу. Якщо ні, створюємо простий порожній fallback.
         if default_logo_bitmap and default_logo_bitmap.IsOk():
@@ -153,7 +151,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         self.show_hellou = None
 
         # Словник для відображення рядка комбобокса до ID особи
-        self._search_result_id_map = {} # <-- Словник для мапінгу "рядок комбобокса" -> ID
+        self._search_result_id_map = {} 
 
         # Зберігати ID особи, дані якої зараз завантажені на панелі
         self.current_person_id = None # <-- Зберігаємо поточний ID osoba
@@ -195,17 +193,13 @@ class KartkaPanel(scrolled.ScrolledPanel):
         bottom_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # Добавляем секцию награды в горизонтальный sizer
-        # proportion=1 позволит ей занять доступное место слева и растягиваться
-        bottom_sizer.Add(self.create_award_group(), 1, wx.EXPAND | wx.RIGHT, 10) # Добавлен правый отступ между группой и кнопками
+        bottom_sizer.Add(self.create_award_group(), 1, wx.EXPAND | wx.RIGHT, 10) 
 
         # Добавляем кнопки в тот же горизонтальный sizer
-        # proportion=0 означает, что кнопки займут только необходимый размер
-        # wx.ALIGN_CENTER_VERTICAL выравнивает кнопки по центру по вертикали относительно award_group
         buttons = self.create_buttons()
         bottom_sizer.Add(buttons, 0, wx.ALIGN_CENTER_VERTICAL)
 
         # Добавляем горизонтальный sizer нижней секции в основной вертикальный sizer
-        # EXPAND позволит bottom_sizer растянуться по ширине
         main_sizer.Add(bottom_sizer, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         self.SetSizer(main_sizer)
@@ -219,7 +213,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         # --- сайзер ДЛЯ ComboBox + текстового поля ---
         combo_and_count_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        combo_and_count_sizer.Add(wx.StaticText(self, label="ID:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, border=3) # Додано StaticText        
+        combo_and_count_sizer.Add(wx.StaticText(self, label="ID:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, border=3) 
         # ComboBox для результатів пошуку
         self.person_search_results_ctrl = wx.ComboBox(self, choices=["Завантаження..."], style=wx.CB_READONLY)
         self.person_search_results_ctrl.Bind(wx.EVT_COMBOBOX, self.on_person_selected)
@@ -228,7 +222,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         # Текстовий елемент для кількості записів
         self.person_result_count_text = wx.StaticText(self, label="-")
-        self.person_result_count_text.SetMinSize((30, -1))  # 40 пікселів ширина, -1 = авто висота
+        self.person_result_count_text.SetMinSize((30, -1))  
 
         combo_and_count_sizer.Add(self.person_result_count_text, flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT, border=10)
 
@@ -243,7 +237,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         pib_sizer.Add(self.full_name_ctrl, 2, wx.EXPAND)
 
         pib_sizer.Add(wx.StaticText(self, label="РНОКПП:"), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.inn = wx.TextCtrl(self) # Зберігаємо посилання
+        self.inn = wx.TextCtrl(self) 
         self.inn.SetMaxLength(10)
         pib_sizer.Add(self.inn, 1, wx.EXPAND)
         self.inn.Bind(wx.EVT_KILL_FOCUS, self.on_inn_focus_lost)
@@ -260,7 +254,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         grid.Add(self.unit_ctrl, 1, wx.EXPAND)
         grid.AddGrowableCol(3, 3)
     
-        self.birtday = wx.StaticText(self, label="Дата народження: ---- -- --") # Зберігаємо посилання і встановлюємо початковий текст
+        self.birtday = wx.StaticText(self, label="Дата народження: ---- -- --") 
         grid.Add(self.birtday, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT)
         grid.AddGrowableCol(4, 1)
         sizer.Add(grid, 0, wx.ALL | wx.EXPAND, 3)
@@ -277,10 +271,10 @@ class KartkaPanel(scrolled.ScrolledPanel):
         pres_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.pres_ctrl = wx.ComboBox(self, choices=[""], style=wx.CB_READONLY) # Комбобокс вибора подання
         self.pres_ctrl.Bind(wx.EVT_COMBOBOX, self.fill_submission_fields)        
-        pres_sizer.Add(wx.StaticText(self, label="ID:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, border=3) # Додано StaticText
+        pres_sizer.Add(wx.StaticText(self, label="ID:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, border=3) 
         # Текстовий елемент для кількості записів
         self.pres_count_text = wx.StaticText(self, label="-")
-        self.pres_count_text.SetMinSize((30, -1))  # 40 пікселів ширина, -1 = авто висота
+        self.pres_count_text.SetMinSize((30, -1))  
 
         pres_sizer.Add(self.pres_ctrl, 2, wx.EXPAND)
         pres_sizer.Add(self.pres_count_text, flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT, border=10)
@@ -292,24 +286,24 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         # Номер подання
         grid.Add(wx.StaticText(self, label=" Номер:"), 0, wx.ALIGN_CENTER_VERTICAL)
-        self.submission_number_ctrl = wx.TextCtrl(self) # Зберігаємо посилання
+        self.submission_number_ctrl = wx.TextCtrl(self) 
         grid.Add(self.submission_number_ctrl, 0, wx.EXPAND) # proportion 0 тут, розтягування в FlexGridSizer
 
         # Дата реєстрації подання
         grid.Add(wx.StaticText(self, label="Дата:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5) # Додано відступ
-        self.PresDATE = wx.adv.DatePickerCtrl(self, style=wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY) # Зберігаємо посилання
+        self.PresDATE = wx.adv.DatePickerCtrl(self, style=wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY) 
         grid.Add(self.PresDATE, 0) # proportion 0
 
         # Виконавець подання
         grid.Add(wx.StaticText(self, label="Виконавець:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5) # Додано відступ
         # Припустимо, вибір виконавців завантажується з БД
         executor_choices = ["", "ВП", "МПЗ", "Інші"] # Приклад
-        self.submission_executor_ctrl = wx.Choice(self, choices=executor_choices) # Зберігаємо посилання
+        self.submission_executor_ctrl = wx.Choice(self, choices=executor_choices) 
         grid.Add(self.submission_executor_ctrl, 0, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL) # proportion 0, розтягування в FlexGridSizer
 
         # Рух (звідки/куди) - ПЕРЕМІЩЕНО СЮДИ
         grid.Add(wx.StaticText(self, label="Рух:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5) # Додано відступ
-        self.submission_movement_ctrl = wx.TextCtrl(self) # Зберігаємо посилання
+        self.submission_movement_ctrl = wx.TextCtrl(self) 
         grid.Add(self.submission_movement_ctrl, 0, wx.EXPAND) # proportion 0, розтягування в FlexGridSizer
 
         # кнопка повторения последнего ввода
@@ -323,35 +317,35 @@ class KartkaPanel(scrolled.ScrolledPanel):
         grid.AddGrowableCol(5, 0) # Виконавець
         grid.AddGrowableCol(7, 1) # Рух (звідки/куди)
 
-        sizer.Add(grid, 0, wx.EXPAND | wx.ALL, 3) # FlexGridSizer додається з proportion 0, щоб він не розтягувався по вертикалі
+        sizer.Add(grid, 0, wx.EXPAND | wx.ALL, 3) 
 
         # Текст подання (RichTextCtrl) та Чекбокси - ТЕПЕР НА ОДНІЙ СТРОЦІ
         text_and_checkbox_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # Текст подання
-        text_and_checkbox_sizer.Add(wx.StaticText(self, label="Текст:"), 0, wx.ALIGN_TOP | wx.ALL, 3) # Вирівнювання по верху для RichTextCtrl
-        self.text_pres = rt.RichTextCtrl(self, size=(-1, 100), style=wx.TE_MULTILINE | wx.TE_RICH2) # Зберігаємо посилання
-        text_and_checkbox_sizer.Add(self.text_pres, 1, wx.ALL | wx.EXPAND, 3) # proportion 1 для розтягування RichTextCtrl
+        text_and_checkbox_sizer.Add(wx.StaticText(self, label="Текст:"), 0, wx.ALIGN_TOP | wx.ALL, 3) 
+        self.text_pres = rt.RichTextCtrl(self, size=(-1, 100), style=wx.TE_MULTILINE | wx.TE_RICH2) 
+        text_and_checkbox_sizer.Add(self.text_pres, 1, wx.ALL | wx.EXPAND, 3) 
 
         # Чекбокси 
-        checkbox_v_sizer = wx.BoxSizer(wx.VERTICAL) # Вертикальний sizer для чекбоксів, щоб вони були один під одним
+        checkbox_v_sizer = wx.BoxSizer(wx.VERTICAL) 
 
-        self.submission_posthumous_checkbox = wx.CheckBox(self, label="- посмертно") # Зберігаємо посилання
+        self.submission_posthumous_checkbox = wx.CheckBox(self, label="- посмертно") 
         checkbox_v_sizer.Add(self.submission_posthumous_checkbox, 0, wx.ALL, 3)
         self.submission_posthumous_checkbox.Bind(wx.EVT_CHECKBOX, self.ctrl_submission_posthumous_checkbox)
 
-        self.pres_denied_checkbox = wx.CheckBox(self, label="- відмовлено") # Зберігаємо посилання
+        self.pres_denied_checkbox = wx.CheckBox(self, label="- відмовлено") 
         checkbox_v_sizer.Add(self.pres_denied_checkbox, 0, wx.ALL, 3)
         self.pres_denied_checkbox.Bind(wx.EVT_CHECKBOX, self.ctrl_pres_denied_checkbox)
 
-        self.pres_unlink_meed_checkbox = wx.CheckBox(self, label="- відв'язати") # Зберігаємо посилання
+        self.pres_unlink_meed_checkbox = wx.CheckBox(self, label="- відв'язати") 
         checkbox_v_sizer.Add(self.pres_unlink_meed_checkbox, 0, wx.ALL, 3)
         self.pres_unlink_meed_checkbox.Bind(wx.EVT_CHECKBOX, self.ctrl_pres_unlink_meed_checkbox)
         self.pres_unlink_meed_checkbox.Hide()
 
-        text_and_checkbox_sizer.Add(checkbox_v_sizer, 0, wx.EXPAND | wx.LEFT, 10) # Додаємо вертикальний sizer з чекбоксами праворуч, з відступом
+        text_and_checkbox_sizer.Add(checkbox_v_sizer, 0, wx.EXPAND | wx.LEFT, 10) 
 
-        sizer.Add(text_and_checkbox_sizer, 1, wx.EXPAND | wx.ALL, 3) # proportion 1, щоб RichTextCtrl розтягувався по вертикалі в межах цього sizer'а
+        sizer.Add(text_and_checkbox_sizer, 1, wx.EXPAND | wx.ALL, 3) 
 
         return sizer
 
@@ -369,7 +363,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         self.meed_ctrl.Bind(wx.EVT_COMBOBOX, self.fill_meed_fields)      
         
         self.meed_count_text = wx.StaticText(self, label="-") # Текст  кількості записів
-        self.meed_count_text.SetMinSize((30, -1))  # 40 пікселів ширина, -1 = авто висота
+        self.meed_count_text.SetMinSize((30, -1))  
         meed_sizer.Add(self.meed_ctrl, 2, wx.EXPAND)
         meed_sizer.Add(self.meed_count_text, flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT, border=10)
 
@@ -445,7 +439,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         self.HandowerNAME.Bind(wx.EVT_TEXT, self.on_handower_name_changed)
 
         self.handower_btn = wx.Button(self, label="")
-        left_grid.Add(self.handower_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.EXPAND) # Вирівнювання та потенційне розтягування кнопки
+        left_grid.Add(self.handower_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.EXPAND) 
 
         # Чекбокс для протоколу видачі
         self.protok_handing = wx.CheckBox(self, label="- є протокол") 
@@ -474,16 +468,16 @@ class KartkaPanel(scrolled.ScrolledPanel):
         bottom_sizer.Add(left_grid, 1, wx.EXPAND | wx.RIGHT, 10) # Сітка займає основний простір
 
         # Додаємо відображення зображення праворуч від сітки
-        bottom_sizer.Add(self.award_image_display, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5) # Зображення зберігає свій розмір, центрується по вертикалі
+        bottom_sizer.Add(self.award_image_display, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5) 
 
         # Додаємо нижній сайзер (що містить сітку та зображення) до основного сайзера
-        sizer.Add(bottom_sizer, 1, wx.ALL | wx.EXPAND, 3) # Дозволяємо нижньому сайзеру розтягуватися по вертикалі в межах StaticBox
+        sizer.Add(bottom_sizer, 1, wx.ALL | wx.EXPAND, 3) 
 
         self.meed_row_items = [
             # Ряд 2
             self.ConsingN_label, self.ConsingN,
             self.NumberMeed_label, self.NumberMeed,
-            self.spacer_ctrl0, # Спейсер у ряду 2, стовпець 5
+            self.spacer_ctrl0, 
 
             # Ряд 3
             self.HandowerNAME_label, self.HandoverDATE,
@@ -540,7 +534,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         if self.inn: self.inn.SetValue('')
         if self.rank_ctrl: self.rank_ctrl.SetSelection(0)
         if self.unit_ctrl: self.unit_ctrl.SetSelection(0)
-        if self.birtday: self.birtday.SetLabel("Дата народження: ---- -- --") # birtday - StaticText
+        if self.birtday: self.birtday.SetLabel("Дата народження: ---- -- --") 
         self.clear_submission_data() # Очищаємо подання
         if self.pres_count_text: self.pres_count_text.SetLabel('0')
         if self.submission_number_ctrl: self.submission_number_ctrl.SetValue('')
@@ -561,7 +555,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
     def clear_submission_data(self):
         self.current_presentation_id = None        
-        """Очищає поля, пов'язані з поданням."""
+        # Очищає поля, пов'язані з поданням.
         if self.PresDATE: self.PresDATE.SetValue(CURRENT_DATA)
         if self.submission_number_ctrl: self.submission_number_ctrl.SetValue('')
         if self.submission_executor_ctrl: self.submission_executor_ctrl.SetSelection(wx.NOT_FOUND)
@@ -584,7 +578,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
     def clear_meed_data(self):
         self.current_meed_id = None
-        """Очищає поля, пов'язані з нагородженням."""        
+        # Очищає поля, пов'язані з нагородженням 
         if self.meed_ctrl:
             self.meed_ctrl.SetSelection(0)
             #self.meed_ctrl.Clear() 
@@ -630,7 +624,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
 
     def populate_and_load_search_results(self, person_ids_list, source_data_award_and_presentation):
-        """ -------------- ПОЛУЧАЕМ результати ПОИСКА  ---------------"""
+        # -------------- ПОЛУЧАЕМ результати ПОИСКА  ---------------
         self.latest_search_person_ids_list = person_ids_list # сохраняем данние по найденим особам из personality
         self.source_data_award_and_presentation = source_data_award_and_presentation # сохраняем данние по найденим особам из meed и presentation
         self.current_person_id = None # Скидаємо поточний ID особи
@@ -902,7 +896,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 self.update_footer_message(f"Помилка при встановленні дати подання: {e}")
             
             worker_map = {0: "ВП", 1: "МПЗ"}
-            worker_val = worker_map.get(int(worker), "інші")
+            worker_val = worker_map.get(int(worker), "Інші")
 
             self.submission_executor_ctrl.SetStringSelection(worker_val)
             
@@ -969,8 +963,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         try: 
             item = self.meed_list[list_index]
             raw = item["raw_data"]  # Це кортеж значень
-            handover_info = item.get("handover_info", "")
-
+            #handover_info = item.get("handover_info", "")
             (
                 id_personality,     # id_personality
                 award_id,           # id_award
@@ -990,7 +983,6 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 meed_id,            # id (meed_id)
                 dead                # dead
             ) = raw
-
             self.current_meed_id = meed_id # id meed
 
             # Заповнення полів
@@ -1020,7 +1012,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 self.meed_dead_checkbox.SetValue(False)
 
             if self.NumberMeed: self.NumberMeed.SetValue(number_meed or "")
-            if self.ConsingN: self.ConsingN.SetValue(consignment_note or '')
+            if self.ConsingN: self.ConsingN.SetValue(consignment_note or "")
 
             # Обробка дати вручення 
             if handover_date:
@@ -1030,24 +1022,18 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 except Exception as e:
                     self.update_footer_message(f"Помилка дати вручення: {e}")
 
-            # Обробка "человеческого вивода" получателя нагороди
+            # Обробка получателя нагороди
             if hasattr(self, 'HandowerNAME'):
                 try:
-                    parts = handover_info.strip().split(", ")
-                    if len(parts) > 1:
-                        handover_ = parts[1].split(".")[0]
-                        if "$" in handover_:
-                            handover_ = handover_.split("$")[0]
-                        self.HandowerNAME.SetValue(handover_)                        
+                    if "$" in handover_person:
+                        handover_ = handover_person.split("$")[0]
+                        self.HandowerNAME.SetValue(handover_)
+                        # проверка на наявність протоколу видачі
+                        self.protok_handing.SetValue(True)
                     else:
-                        self.HandowerNAME.SetValue("")
+                        self.HandowerNAME.SetValue(handover_person)
                 except Exception as e:
                     self.HandowerNAME.SetValue("")
-
-            # проверка на наявність протоколу видачі
-            # логіка - якщо до HandowerNAME додано позначку "$" то існує протокол видачі
-            if "$" in handover_person:
-                self.protok_handing.SetValue(True)
 
             # Вичисляємо 0-базовий індекс списку подань
             # Припускаємо, що search_index_from_list повертає 0-базовий індекс або -1
@@ -1638,7 +1624,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         
         data['person']['full_name'] = full_name
 
-        if self.inn:
+        if self.inn and int(self.delete_mode_on) != 1:
             inn = self.inn.GetValue().strip()            
             if not inn:
                 wx.MessageBox("Поле 'РНОКПП' є обов'язковим для заповнення.", "Помилка введення", wx.OK | wx.ICON_ERROR)
@@ -1734,9 +1720,9 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
     def on_save(self, event):
         """Обробник кнопки "Зберегти"."""
+        self.delete_mode_on = self.delete_ctrl.GetSelection() # ВАЖНО расположение визовов функций именно так
         collected_data = self.collect_ui_values()
-        delete_mode_on = self.delete_ctrl.GetSelection()
-
+        
         if collected_data is None: 
             # странная ошибка. виход
             return
@@ -1747,9 +1733,9 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
 
         """ --------------- режим видалення -------------------- """
-        if delete_mode_on: 
+        if self.delete_mode_on: 
             #  
-            if int(delete_mode_on) == 1: # Видалити особу
+            if int(self.delete_mode_on) == 1: # Видалити особу
                 if self.current_person_id:
                     deletion_successful = self.delete_personality()
                     if deletion_successful:
@@ -1761,7 +1747,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 else:
                     wx.MessageBox("Не вибрано жодної особи для видалення.", "Інформація", wx.OK | wx.ICON_INFORMATION)
 
-            elif int(delete_mode_on) == 2: # Видалити подання
+            elif int(self.delete_mode_on) == 2: # Видалити подання
                 if self.current_presentation_id:
                     deletion_successful = self.delete_presentation()
                     if deletion_successful:
@@ -1769,7 +1755,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 else:
                     wx.MessageBox("Не вибрано жодного подання для видалення.", "Інформація", wx.OK | wx.ICON_INFORMATION)
 
-            elif int(delete_mode_on) == 3: # Видалити нагороду
+            elif int(self.delete_mode_on) == 3: # Видалити нагороду
                 if self.current_meed_id:
                     deletion_successful = self.delete_meed()
                     if deletion_successful:
@@ -1913,9 +1899,8 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
                 worker_wx = presentation_data.get('submission_executor')
                 worker = None
-                worker_mapping = {"ВП": 0, "МПЗ": 1, "інші": 2}
+                worker_mapping = {"ВП": 0, "МПЗ": 1, "Інші": 2}
                 worker = worker_mapping.get(worker_wx)
-
                 # Логіка для зв'язування подання та нагороди
                 if presentation_data.get('submission_denied'):
                     id_meed_in_collected_data = 0 # Відмовлено
@@ -1971,6 +1956,8 @@ class KartkaPanel(scrolled.ScrolledPanel):
                         date_handover = date_handover_wx.FormatISODate()   
 
                 consignment_note = meed_data.get('consignment_number')
+                if number_meed in (None, "") and consignment_note not in (None, ""):
+                    number_meed = "бн"
 
                 dead = None
                 if meed_data.get('meed_dead'):
@@ -2020,7 +2007,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
             # 2.Якщо не вибраний/і чекбокс/и відв'язування/відмови 
             # 3.Якщо є номер подання/нагородження
             link_dialog_was_shown = False
-            if not delete_mode_on and \
+            if not self.delete_mode_on and \
                 not self.pres_unlink_meed_checkbox.IsShown() and \
                 not collected_data['submission']['submission_denied']:
                 temp_link_dialog = LinkDialog(None, self.conn, self.cursor, initial_query=[self.current_person_id, self.current_meed_id, self.current_presentation_id])
@@ -2065,19 +2052,19 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
 class SearchFrame(wx.Frame):
     def __init__(self, conn, cursor, initial_query="", target_field=None):
-        super(SearchFrame, self).__init__(None, title="Пошук отримувача", size=(600, 200)) # Трохи збільшив висоту
+        super(SearchFrame, self).__init__(None, title="Пошук отримувача", size=(600, 200)) 
 
         self.conn = conn
         self.cursor = cursor
 
         self.query = initial_query
-        self.target_field = target_field  # ← зберігаємо посилання на зовнішнє поле
-        self.results_data = [] # Для зберігання повних даних результатів
+        self.target_field = target_field  
+        self.results_data = [] 
 
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        self.combo = wx.ComboBox(panel, style=wx.CB_READONLY | wx.CB_SORT) # Додав CB_SORT для сортування
+        self.combo = wx.ComboBox(panel, style=wx.CB_READONLY) 
         vbox.Add(self.combo, flag=wx.EXPAND | wx.ALL, border=10)
 
         self.label = wx.StaticText(panel, label="")
@@ -2085,7 +2072,6 @@ class SearchFrame(wx.Frame):
 
         panel.SetSizer(vbox)
 
-        # Прив'язка події вибору елемента з комбобоксу
         self.combo.Bind(wx.EVT_COMBOBOX, self.on_select)
 
         if self.query:
@@ -2097,8 +2083,7 @@ class SearchFrame(wx.Frame):
             wx.MessageBox("Не вдалось підключитись до бази", "Помилка", wx.ICON_ERROR)
             return
 
-        # Використовуємо self.query, як і раніше, оскільки він містить актуальний запит
-        raw_results, stringTab1, imgList, counts_gid01, source_data = search_q(self.query, self.cursor)
+        raw_results, stringTab1, imgList, counts_gid01, source_data = search_q(query_passed_as_event, self.cursor)
         label_str = ""
         if raw_results:
             # Оскільки ComboBox буде сортувати відображувані значення,

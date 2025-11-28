@@ -12,20 +12,23 @@ import wx
 """from config import (DATABASE_FILE_PATH, DEF_FUT_LABEL, MASTERKEY,
                     SHOW_MORE_IMAGES, START_YEAR)"""
 
-RankingValues = ["", "Найвища", "Президент", "ВРУ", "МОУ/ГК/ГШ", "РНБО", "ОК/ОТУ/Бригада"]
+RankingValues = ["", "Найвища", "Державні", "Від центральних ов", "Відомчі", "Від місцевих ов", "Бригадні"]
 
 
 def connect_to_database(passwd, database_file_path):
     """Подключение к базе данных с паролем. Возвращает conn и cursor."""
     try:
         conn = sqlite3.connect(database_file_path)
-        conn.create_function("LOWER", 1, sqlite_lower)
         cursor = conn.cursor()
         cursor.execute(f"PRAGMA key = '{passwd}';")
+        cursor.execute("PRAGMA cipher_compatibility = 3;")  # SQLCipher 3 совместимость
+        cursor.execute("PRAGMA kdf_iter = 64000;")
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         if cursor.fetchall():
+            conn.create_function("LOWER", 1, sqlite_lower)
             return conn, cursor
-    except Exception:
+    except Exception as e:
+        print("Ошибка подключения к базе:", e)
         return None, None
 
 
@@ -189,13 +192,20 @@ def get_award_and_presentation_info(person_ids, cursor):
             imgList.append(row[1])
 
             string_handover_value = ""
-            if row[7] and row[4]:
+            if row[6] or row[7]:
                 person_output += f' - накладна {row[7]}.'
                 string_handover_value = f'\n - нагороду {row[4]}'
-
-                if row[6]:
-                    hto = execute_query(cursor, "SELECT name FROM personality WHERE id = :id", {"id": row[6]})
-                    string_handover_value += f' вручено: {row[5]}, {hto[0][0] if hto else row[6]}.\n'
+                htoid = row[6]
+                htoidclean = ""
+                protokol = ""
+                if htoid not in (None, ""):
+                    if htoid.endswith("$"):
+                        htoidclean = htoid[:-1]
+                        protokol = ", є протокол вручення"
+                    else:
+                        htoidclean = htoid
+                    hto = execute_query(cursor, "SELECT name FROM personality WHERE id = :id", {"id": htoidclean})
+                    string_handover_value += f' вручено: {row[5]}, {hto[0][0] if hto else htoidclean}{protokol}.\n'
                 else:
                     string_handover_value += ' не вручено.\n'
 
@@ -638,7 +648,10 @@ def create_database(database_file_path, passwd):
 
         # Create a cursor object to interact with the database
         cursor = db.cursor()
+        # SQLCipher 3 совместимость
         cursor.execute(f"PRAGMA key = '{passwd}';")
+        cursor.execute("PRAGMA cipher_compatibility = 3;")
+        cursor.execute("PRAGMA kdf_iter = 64000;")
 
         # Create a table
         cursor.execute("""

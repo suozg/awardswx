@@ -2,21 +2,18 @@
 
 import wx
 import wx.lib.plot as plot
-from database_logic import AwardDataLoader  # ← Импорт из нового файла
+from database_logic import AwardDataLoader  
 
 class AwardGraphPanel(wx.Panel):
-    def __init__(self, parent, cursor, start_year, element_controls): # <-- Изменено
-        super().__init__(parent, wx.ID_ANY) # Используйте wx.ID_ANY
-        # Сохраняем переданные параметры
-        self.cursor = cursor # Сохраняем переданный курсор
+    def __init__(self, parent, cursor, start_year, element_controls): 
+        super().__init__(parent, wx.ID_ANY) 
+        self.cursor = cursor 
         self.START_YEAR = start_year 
         self.element_controls = element_controls
-
-        self.data_loader = AwardDataLoader(self.START_YEAR) # <-- Создаем Data Loader
+        self.data_loader = AwardDataLoader(self.START_YEAR) 
 
         try:
-            # Вызываем load_data у data_loader, передавая КУРСОР
-            self.data_loader.load_data(self.cursor) # <-- Вызов load_data с курсором. НЕ возвращает результат!
+            self.data_loader.load_data(self.cursor) 
 
         except RuntimeError as e:
             wx.MessageBox(str(e), "Помилка завантаження даних графіка", wx.OK | wx.ICON_ERROR)
@@ -27,11 +24,11 @@ class AwardGraphPanel(wx.Panel):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         # Создание canvas для графика
-        self.plot_canvas = plot.PlotCanvas(self, wx.ID_ANY) # Используйте wx.ID_ANY
+        self.plot_canvas = plot.PlotCanvas(self, wx.ID_ANY) 
         sizer.Add(self.plot_canvas, 1, wx.EXPAND | wx.ALL, 10)
 
         # Получаем данные для графика ЧЕРЕЗ self.data_loader
-        x_data, y_state, y_all, y_present = self.data_loader.get_graph_data() # <-- Получаем данные через data_loader
+        x_data, y_state, y_all, y_present = self.data_loader.get_graph_data() 
 
         # Проверяем, есть ли данные для построения графика
         if not x_data or not y_all:
@@ -118,7 +115,6 @@ class AwardGraphPanel(wx.Panel):
              percentage = round(y_val_state / y_val_all * 100) if y_val_all else 0
              text = f' ** за {selected_year} рік: {y_val_all} ({y_val_state}, або {percentage}%)'
         else:
-             # Этот случай маловероятен, если selected_year извлечен из x_data
              text = f' ** за {selected_year} рік: 0' # Или другое сообщение
 
         self.slider_label.SetLabel(text)
