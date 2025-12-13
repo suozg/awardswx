@@ -187,7 +187,7 @@ def get_award_and_presentation_info(person_ids, cursor):
 
             deadTxt = " (посмертно)" if row[16] == "1" else ""
             if person_output == "": # виводимо дані про особу 1 раз
-                person_output += f'\n* {row[8]} {row[9]} ({display_inn}, {row[11]}) * \n'
+                person_output += f'\n* {row[8]} {row[9]} ({display_inn}, {row[11]}) * \n\n нагороди ({len(awards)})'
             person_output += f'\n {row[14]}\n - указ/наказ : №{row[3]} від {row[2]} {deadTxt};\n'
 
             imgList.append(row[1])
@@ -234,7 +234,7 @@ def get_award_and_presentation_info(person_ids, cursor):
         """, {"id": pid})
 
         if person_output.strip() and presentations: # Додамо перевірку, чи є подання, для краси
-            person_output += "\n подання:\n"
+            person_output += f'\n подання ({len(presentations)})\n'
 
         source_data_award_and_presentation.setdefault(pid, {})['presentations'] = presentations
 
@@ -254,7 +254,7 @@ def get_award_and_presentation_info(person_ids, cursor):
             t_report = "" if row[9] == "посмертно" else row[9]
 
             if person_output == "":
-                person_output += f'\n* {row[3]} {row[2]} ({display_inn}, {row[5]}) *\n\n подання:\n'
+                person_output += f'\n* {row[3]} {row[2]} ({display_inn}, {row[5]}) *\n\n подання ({len(presentations)})\n'
             person_output += f' №{row[0]} від {row[1]} {deadTxtP} вик.{worker} {t_report} {Vidmova}\n'
 
         if person_output.strip():
@@ -263,28 +263,51 @@ def get_award_and_presentation_info(person_ids, cursor):
     return stringTab1, imgList, counts_gid01, source_data_award_and_presentation
 
 
+#def get_award_image_blobs_for_search(imgList, counts_gid01, cursor):
+#    """    Извлекает бинарные данные изображений (BLOB) для списка ID наград БЕЗ дубликатов   """
+#    if not cursor or not imgList or counts_gid01 != 1:
+#        return []
+#
+#    award_ids = [item for item in imgList if isinstance(item, (int, str)) and str(item).isdigit()]
+#    unique_ids = list(set(int(id) for id in award_ids)) #для вивода уникальних наград
+#
+#    if not unique_ids:
+#        return []
+#
+#    try:
+#        placeholders = ','.join('?' for _ in unique_ids)
+#        query = f"SELECT id, img, ranking FROM award WHERE id IN ({placeholders}) ORDER BY ranking"
+#        cursor.execute(query, unique_ids)
+#        rows = cursor.fetchall()
+#        image_blobs = [row[1] for row in rows if row[1] is not None and isinstance(row[1], bytes)]
+#        return image_blobs
+#    except Exception:
+#        return []
+
 def get_award_image_blobs_for_search(imgList, counts_gid01, cursor):
-    """    Извлекает бинарные данные изображений (BLOB) для списка ID наград    """
+    """ Видобуває бінарні дані зображень (BLOB) для списку ID нагород, зберігаючи порядок та дублікати. """
     if not cursor or not imgList or counts_gid01 != 1:
         return []
 
-    award_ids = [item for item in imgList if isinstance(item, (int, str)) and str(item).isdigit()]
-    unique_ids = list(set(int(id) for id in award_ids))
-
-    if not unique_ids:
+    requested_ids = [int(item) for item in imgList if isinstance(item, (int, str)) and str(item).isdigit()]
+    
+    if not requested_ids:
         return []
 
     try:
-        placeholders = ','.join('?' for _ in unique_ids)
-        query = f"SELECT id, img FROM award WHERE id IN ({placeholders})"
-        cursor.execute(query, unique_ids)
-        rows = cursor.fetchall()
-        image_blobs = [row[1] for row in rows if row[1] is not None and isinstance(row[1], bytes)]
-        return image_blobs
+        unique_ids_for_query = list(set(requested_ids))
+        placeholders = ','.join('?' for _ in unique_ids_for_query)
+        query = f"SELECT id, img, ranking FROM award WHERE id IN ({placeholders})"
+        cursor.execute(query, unique_ids_for_query)
+        id_to_blob = {row[0]: row[1] for row in cursor.fetchall()}
+        final_blobs = []
+        for req_id in requested_ids:
+            blob = id_to_blob.get(req_id)
+            if blob is not None and isinstance(blob, bytes):
+                final_blobs.append(blob)
+        return final_blobs
     except Exception:
         return []
-
-
 
 # -------------- класс для построения графика ------------------------
 
