@@ -186,8 +186,9 @@ def get_award_and_presentation_info(person_ids, cursor):
             display_inn = _get_formatted_inn_display(row[10]) 
 
             deadTxt = " (посмертно)" if row[16] == "1" else ""
-            person_output += f'\n* {row[8]} {row[9]} ({display_inn}, {row[11]}){deadTxt} *\n {row[14]} \n'
-            person_output += f' - указ/наказ : №{row[3]} від {row[2]};\n'
+            if person_output == "": # виводимо дані про особу 1 раз
+                person_output += f'\n* {row[8]} {row[9]} ({display_inn}, {row[11]}) * \n'
+            person_output += f'\n {row[14]}\n - указ/наказ : №{row[3]} від {row[2]} {deadTxt};\n'
 
             imgList.append(row[1])
 
@@ -232,6 +233,9 @@ def get_award_and_presentation_info(person_ids, cursor):
             FROM presentation WHERE id_personality = :id
         """, {"id": pid})
 
+        if person_output.strip() and presentations: # Додамо перевірку, чи є подання, для краси
+            person_output += "\n подання:\n"
+
         source_data_award_and_presentation.setdefault(pid, {})['presentations'] = presentations
 
         for row in presentations:
@@ -249,8 +253,9 @@ def get_award_and_presentation_info(person_ids, cursor):
             deadTxtP = "(посмертно)" if row[9] == "посмертно" else ""
             t_report = "" if row[9] == "посмертно" else row[9]
 
-            person_output += f'\n* {row[3]} {row[2]} ({display_inn}, {row[5]}) {deadTxtP} *\n'
-            person_output += f' подання №{row[0]} від {row[1]}. вик.{worker} {t_report} {Vidmova}\n'
+            if person_output == "":
+                person_output += f'\n* {row[3]} {row[2]} ({display_inn}, {row[5]}) *\n\n подання:\n'
+            person_output += f' №{row[0]} від {row[1]} {deadTxtP} вик.{worker} {t_report} {Vidmova}\n'
 
         if person_output.strip():
             stringTab1 += person_output + "\n****\n"

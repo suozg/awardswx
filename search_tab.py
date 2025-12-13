@@ -173,6 +173,10 @@ class Tab1Panel(wx.Panel):
             # Виконуємо пошук у базі даних
             self.latest_search_results, stringTab1, imgList, counts_gid01, self.source_data_award_and_presentation = search_q(search_query, self.cursor, self.search_id)
             self.logo_display.Show(False)
+            # === 💡 Скинути атрибути перед встановленням нового тексту ===
+            base_attr = wx.richtext.RichTextAttr()
+            self.result1.SetDefaultStyle(base_attr)
+            
             self.result1.SetValue(stringTab1)  # Встановлюємо отриманий текст у поле результатів
 
             # Виділяємо пошуковий запит у результатах (без урахування регістру)
