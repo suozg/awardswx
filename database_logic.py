@@ -21,14 +21,16 @@ def connect_to_database(passwd, database_file_path):
         conn = sqlite3.connect(database_file_path)
         cursor = conn.cursor()
         cursor.execute(f"PRAGMA key = '{passwd}';")
-        cursor.execute("PRAGMA cipher_compatibility = 3;")  # SQLCipher 3 совместимость
+        # SQLCipher 3 совместимость
+        cursor.execute("PRAGMA cipher_compatibility = 3;")  
         cursor.execute("PRAGMA kdf_iter = 64000;")
+        # перевірка доступності таблиці
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         if cursor.fetchall():
             conn.create_function("LOWER", 1, sqlite_lower)
             return conn, cursor
     except Exception as e:
-        print("Ошибка подключения к базе:", e)
+        print("Помилка підключення до бази:", e)
         return None, None
 
 
@@ -38,7 +40,7 @@ def sqlite_lower(value_):
 
 
 def is_tipa_inn(value):
-    """Проверка на соответствие РНОКПП (ИНН)."""
+    """Попередня перевірка РНОКПП."""
     return bool(re.fullmatch(r"\d{10}", value))  # РНОКПП должен содержать ровно 10 цифр
 
 
