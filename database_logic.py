@@ -387,9 +387,9 @@ class AwardDataLoader:
 
             for year in range(self.start_year, current_year + 1):
                 self.x_data.append(year)
-                self.y_data_state_awards.append(state_awards_by_year[year])
-                self.y_data_all_awards.append(all_awards_by_year[year])
-                self.y_data_presentations.append(presentations_by_year[year])
+                self.y_data_state_awards.append(state_awards_by_year.get(year, 0))
+                self.y_data_all_awards.append(all_awards_by_year.get(year, 0))
+                self.y_data_presentations.append(presentations_by_year.get(year, 0))
 
         except Exception:
             self._initialize_empty_data()

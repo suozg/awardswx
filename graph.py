@@ -11,7 +11,6 @@ class AwardGraphPanel(wx.Panel):
         self.START_YEAR = start_year 
         self.element_controls = element_controls
         self.data_loader = AwardDataLoader(self.START_YEAR) 
-
         try:
             self.data_loader.load_data(self.cursor) 
 
@@ -29,7 +28,7 @@ class AwardGraphPanel(wx.Panel):
 
         # Получаем данные для графика ЧЕРЕЗ self.data_loader
         x_data, y_state, y_all, y_present = self.data_loader.get_graph_data() 
-
+        
         # Проверяем, есть ли данные для построения графика
         if not x_data or not y_all:
             # Добавьте сообщение об ошибке или пустой график
@@ -45,12 +44,33 @@ class AwardGraphPanel(wx.Panel):
             line1 = plot.PolyLine(list(zip(x_data, y_state)), colour='blue', width=1, legend='Від держави')
             line2 = plot.PolyLine(list(zip(x_data, y_all)), colour='red', width=1, legend='Усі нагороди')
             line3 = plot.PolyLine(list(zip(x_data, y_present)), colour='green', width=1, legend='Подання')
+            
+            self.plot_canvas.xSpec = (min(x_data), max(x_data))
+                        
+            # Собираем все Y-значения
+            all_y_values = []
+
+            if y_state:
+                all_y_values.extend(y_state)
+            if y_all:
+                all_y_values.extend(y_all)
+            if y_present:
+                all_y_values.extend(y_present)
+
+            ymin = min(all_y_values)
+            ymax_real = max(all_y_values)
+            padding = max(1, int(ymax_real * 0.02))
+            self.plot_canvas.ySpec = (ymin, ymax_real + padding)
 
             # Отрисовка графика
-            self.plot_canvas.Draw(plot.PlotGraphics([line1, line2, line3], "Динаміка нагороджень", "Рік", "Кількість")) # Добавлены метки осей
-            self.plot_canvas.xSpec = ('minmax',) # Устанавливаем спецификации осей
-            self.plot_canvas.ySpec = ('minmax',)
-
+            self.plot_canvas.Draw(
+                    plot.PlotGraphics(
+                        [line1, line2, line3], 
+                        "Динаміка нагороджень", 
+                        "Рік", 
+                        "Кількість"
+                    )
+            ) # Добавлены метки осей
 
         # Легенда (используем данные через self.data_loader)
         legend_panel = wx.Panel(self, wx.ID_ANY) # Создаем на AwardGraphPanel, не на detail_panel

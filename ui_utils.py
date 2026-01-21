@@ -118,8 +118,8 @@ class AwardSearchHelper:
         # Повторно прив'язуємо обробник
         self.combo_ctrl.Bind(wx.EVT_TEXT, self.on_text_changed)
 
-# ----------------- ЛОГІКА ЗАПИТІВ ДЛЯ ЗВІТІВ
 
+# ----------------- ЛОГІКА ЗАПИТІВ ДЛЯ ЗВІТІВ
 
 MIN_ROW_HEIGHT = 25
 MAX_WIDTH = 300 # максимальна ширина розширених стовбців
@@ -149,7 +149,7 @@ class ReportGeneratorWx(wx.Frame):
         # --- Создаем рендерер переноса текста ОДИН РАЗ при инициализации ---
         self.wrap_renderer = wx.grid.GridCellAutoWrapStringRenderer()
 
-        n_flags = len(self.zvit_fields)
+        #n_flags = len(self.zvit_fields)
         num_standard_flags = 14
 
         # Обробляємо перші num_standard_flags (14) прапорів (індекси 0 до 13 у zvit_fields)
@@ -553,7 +553,7 @@ class ReportGeneratorWx(wx.Frame):
 
         # --- Налаштовуємо рендерери переносу та розмір колонок ---       
        
-        visible_cols = [i for i, flag in enumerate(self.zvit_fields) if flag]
+        #visible_cols = [i for i, flag in enumerate(self.zvit_fields) if flag]
       
         original_data_index_to_wrap = 5 # Индекс для "Текст подання"
 
@@ -582,12 +582,11 @@ class ReportGeneratorWx(wx.Frame):
                 self.grid.SetRowSize(row_idx, min_height)
 
         self.record_count_label.SetLabel(f"Кількість записів: {len(self.data)}")
-        # self.grid.AutoSizeColumns() # Розгляньте, чи потрібен цей виклик. Він може скасувати SetColSize.
         self.grid.ForceRefresh() # Оновлюємо вигляд сітки
         self.panel.Layout() # Оновлюємо компоновку панелі
 
 
-    # --- Метод _load_data (без змін) ---
+    # --- Метод _load_data ---
     def _load_data(self):
         thread = threading.Thread(target=self._load_data_background)
         thread.start()
@@ -597,7 +596,7 @@ class ReportGeneratorWx(wx.Frame):
         wx.Yield() # Щоб надпис одразу з'явився
 
 
-    # --- Метод _load_data_background (з покращеною обробкою помилок та CallAfter) ---
+    # --- Метод _load_data_background  ---
     def _load_data_background(self):
         """ запускаємо окремий поток для отримання даних """
         conn = None
@@ -885,18 +884,17 @@ def build_query(filters, zvit_fields):
     worker_filter_value = filters.get("worker", "")
     id_worker_value = id_worker_map.get(worker_filter_value, "") # Получаем значение для параметра
 
-    if worker_filter_value and id_worker_value != "_":
+    worker_filter_active = worker_filter_value and id_worker_value != "_" 
+    if worker_filter_active:
         # Используем именованный параметр для значения worker
         id_worker_condition = "AND pr.worker = :worker_id"
         params["worker_id"] = int(id_worker_value) # Добавляем значение в params для binding
 
-    worker_filter_active = worker_filter_value and id_worker_value != "_"
 
     # --- Определяем режим запроса ---
     mode = filters.get('mode')
     handover_status = filters.get('handover_status') # Получаем статус вручения
     specific_submission = filters.get('specific_submission')
-
     query = ""
     pre_titlestr = "" # Дефолтное значение заголовка
 
