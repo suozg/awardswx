@@ -21,6 +21,7 @@ from websearch import WebSearchPanel
 from tablaw import LawsPanel
 import locale
 locale.setlocale(locale.LC_TIME, 'uk_UA.UTF-8') 
+from sql_console import SqlConsolePanel
 
 # --- Допоміжна функція для отримання кастомної панелі зі сторінки Notebook ---
 def get_custom_panel_from_page(page_object):
@@ -316,7 +317,28 @@ class MainFrame(wx.Frame):
             error_panel.SetSizer(error_panel_sizer)
             notebook.AddPage(error_panel, "ЗАКОНИ (Помилка)")
 
+        # --- SQL вкладка ---
+        tab_sql_panel = wx.Panel(notebook, wx.ID_ANY)
+        tab_sql_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        try:
+            sql_panel = SqlConsolePanel(
+                tab_sql_panel,
+                self.conn,
+                self.cursor,
+                fut_place=self.fut_place
+            )
+            tab_sql_sizer.Add(sql_panel, 1, wx.EXPAND | wx.ALL, 5)
+            tab_sql_panel.SetSizer(tab_sql_sizer)
+            notebook.AddPage(tab_sql_panel, "SQL")
+        except Exception as e:
+            error_panel = wx.Panel(notebook)
+            s = wx.BoxSizer(wx.VERTICAL)
+            s.Add(wx.StaticText(error_panel, label=f"SQL вкладка не завантажена: {e}"), 1, wx.ALL, 10)
+            error_panel.SetSizer(s)
+            notebook.AddPage(error_panel, "SQL (Помилка)")
+            print(f"SQL вкладка не завантажена: {e}")
+        # --- вкладка ПРО програму -------------
         try:
             notebook.AddPage(tab10_panel, "ПРО")
         except Exception as e:
