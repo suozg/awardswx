@@ -3,9 +3,8 @@ import wx.adv
 from datetime import datetime
 import wx.dataview as dv
 from wx.dataview import TreeListCtrl, NullDataViewItem
-from database_logic import (
-    execute_query
-)
+from database_logic import execute_query
+from config import DEF_FUT_LABEL
 import webbrowser
 
 
@@ -13,9 +12,9 @@ class LawsPanel(wx.Panel):
     def __init__(self, parent, conn, cursor, fut_place=None):
         super().__init__(parent, wx.ID_ANY)
         self.conn = conn
-        self.cursor = cursor # <-- Курсор сохраняется здесь
+        self.cursor = cursor 
         self.fut_place = fut_place
-        self.last_message = "="
+        self.last_message = DEF_FUT_LABEL
         self.init_ui()
 
     def init_ui(self):
@@ -31,10 +30,15 @@ class LawsPanel(wx.Panel):
         main_sizer.Add(group_bottom_sizer, proportion=0, flag=wx.EXPAND | wx.ALL, border=5)
 
         # Кнопка для изменения записей
-        self.create_new_law_btn = wx.Button(self, label="Змінити записи")
-        self.create_new_law_btn.Bind(wx.EVT_BUTTON, self.create_new_law)
+        self.edit_law_btn = wx.Button(self, label="Змінити")
+        self.edit_law_btn.Bind(wx.EVT_BUTTON, self.edit_law)
         group_bottom_sizer.AddStretchSpacer()
-        group_bottom_sizer.Add(self.create_new_law_btn, flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=10)
+        group_bottom_sizer.Add(self.edit_law_btn, flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=10)
+
+        # Кнопка для добавления записи
+        self.add_law_btn = wx.Button(self, label="Додати")
+        self.add_law_btn.Bind(wx.EVT_BUTTON, self.add_new_law)
+        group_bottom_sizer.Add(self.add_law_btn, flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=10)
 
         self.tree = TreeListCtrl(group_top_sizer.GetStaticBox())
         self.tree.AppendColumn("Номер", width=100)        
@@ -52,7 +56,12 @@ class LawsPanel(wx.Panel):
     def get_footer_message(self):
         return self.last_message
 
-    def create_new_law(self, event=None):
+    def add_new_law(self, event=None):
+        dlg = LawEditDialog(self, self.conn, self.cursor, self.refresh_tree, law_id=None)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def edit_law(self, event=None):
         items = self.tree.GetSelections()
         if not items:
             wx.MessageBox("Будь ласка, оберіть запис для редагування.", "Увага", wx.OK | wx.ICON_WARNING)
@@ -69,8 +78,6 @@ class LawsPanel(wx.Panel):
         dlg = LawEditDialog(self, self.conn, self.cursor, self.refresh_tree, law_id=law_id)
         dlg.ShowModal()
         dlg.Destroy()
-
-
 
     def refresh_tree(self):
         self.tree.DeleteAllItems()
