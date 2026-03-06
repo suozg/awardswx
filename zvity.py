@@ -99,7 +99,8 @@ def load_award_names_worker(panel, db_path, key, rank_filter=None):
 class Tab4Panel(scrolled.ScrolledPanel):
     def __init__ (self, parent, conn, cursor, db_path, key, fut_place=None):
         super().__init__(parent)
-
+        self.SetDoubleBuffered(True)  
+        
         # Залежності та дані
         self.conn = conn
         self.cursor = cursor
@@ -145,6 +146,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
         self.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
 
     def refresh_tree(self, event=None):
+        self.Freeze()
         # --- Завантаження початкових даних ---
         try:
             # Перевіряємо курсор перед використанням
@@ -156,21 +158,17 @@ class Tab4Panel(scrolled.ScrolledPanel):
                  self._loaded_units = ["(Помилка завантаження)"]
                  self._loaded_ranks = ["(Помилка завантаження)"]
                  # Ініціалізувати інші залежні від БД значення як порожні/вимкнені
+            
         except Exception as e:
             pass
 
         finally:
-
-            # --- Побудова UI ---
-            self.build_ui() # Використовує _loaded_units, _loaded_ranks та завантажені зображення
-
-            # --- Встановлення початкового стану віджетів ---
+            self.build_ui() 
             self.update_initial_widget_state()
-            # Застосувати початковий стан режиму (Нагородження/Подання)
             self._update_mode_ui() # Цей метод має оновлювати вигляд залежно від self.mode_toggle_state
-            # Застосувати початковий стан фільтра Військові/Цивільні
             self.update_unit_civilian_visibility() # Цей метод оновлює видимість залежно від вибору категорії особи
-
+            self.Layout()
+            self.Thaw()
 
     def on_destroy(self, event):
         """Обробник події закриття вікна."""
@@ -283,6 +281,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
     def build_ui(self):
         """Збирає основний макет інтерфейсу користувача."""
+        self.DestroyChildren()
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
         # Верхня панель: Фільтри

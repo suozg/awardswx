@@ -12,7 +12,7 @@ import wx
 """from config import (DATABASE_FILE_PATH, DEF_FUT_LABEL, MASTERKEY,
                     SHOW_MORE_IMAGES, START_YEAR)"""
 
-RankingValues = ["", "Найвища", "Державні", "Від центральних ов", "Відомчі", "Від місцевих ов", "Бригадні"]
+RankingValues = ["", "Найвища", "Державні", "Від центральних ов", "Відомчі", "Від місцевих ов", "Від керівництва", "Інші"]
 
 
 def connect_to_database(passwd, database_file_path):

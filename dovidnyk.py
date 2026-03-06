@@ -121,26 +121,22 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
         self.update_footer_message(DEF_FUT_LABEL)
         self.show_view("no_selection")
 
-
     def refresh_tree(self):
-        # --- Якщо підключення успішне, завантажуємо дані з БД та заполняємо дерево ---
         if self.cursor:
             try:
+                # 1. Отримуємо дані з БД (тут лише категорії з нагородами)
                 self.awards_data = get_treedata(self.cursor)
-                """
-                awards_data[ranking_description][award_name] = {
-                "award_id": award_id,     # ID из базы данных
-                "law": law_desc,          # Данные из колонки 'law'
-                "grounds": grounds_desc,  # Данные из колонки 'grounds'
-                "image": image_data,      # Данные BLOB изображения
-                "original_ranking_int": ranking, # О
-                """
+                
+                # 2. Ініціалізуємо порожні категорії з RankingValues 
+                # Це гарантує, що target_category in self.awards_data завжди буде True
+                for category in RankingValues:
+                    if category and category not in self.awards_data:
+                        self.awards_data[category] = {}
+
                 if not self.awards_data and self.conn:
-                    wx.MessageBox("База даних порожня або відсутні очікувані таблиці/дані.", "Попередження", wx.OK | wx.ICON_INFORMATION)
+                    wx.MessageBox("База даних порожня...", "Попередження", wx.OK | wx.ICON_INFORMATION)
 
-                # Заполняем дерево данными
                 self.populate_tree()
-
             except Exception as e:
                 wx.MessageBox(f"Не вдалося завантажити або обробити дані з бази даних: {e}", "Помилка даних БД", wx.OK | wx.ICON_ERROR)
                 self.awards_data = {} # Устанавливаем пустые данные при ошибке
@@ -152,26 +148,31 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
 
     def populate_tree(self):
         """ метод для заполнения дерева """
-        self.tree.DeleteChildren(self.root) # Очищаем существующие элементы дерева
-        if self.awards_data:
-            sorted_categories = self.awards_data.keys()
+        self.tree.DeleteChildren(self.root)  # Очищаем существующие элементы дерева
 
-            for category in sorted_categories:
-                awards = self.awards_data.get(category, {})
-                cat_item = self.tree.AppendItem(self.root, category)
-                # Сортируем награды по имени внутри категории
-                for award_name in sorted(awards.keys()):
-                    award_details = awards.get(award_name, {}) # Используем .get() для безопасности
-                    award_id = award_details.get("award_id")
-                    item = self.tree.AppendItem(cat_item, award_name)
-                    # привязываем данные к элементу дерева (award_id)
-                    self.tree.SetItemData(item, award_id)
+        # Строим категории из RankingValues, а не из awards_data
+        for category in RankingValues:
+            if not category:  # пропускаем пустую категорию ""
+                continue
 
-            # Опционально: раскрыть все категории после заполнения
-            # self.tree.ExpandAllChildren(self.root)
+            awards = self.awards_data.get(category, {})
+
+            cat_item = self.tree.AppendItem(self.root, category)
+
+            # Сортируем награды внутри категории
+            for award_name in sorted(awards.keys()):
+                award_details = awards.get(award_name, {})
+                award_id = award_details.get("award_id")
+
+                item = self.tree.AppendItem(cat_item, award_name)
+
+                # привязываем ID награды
+                self.tree.SetItemData(item, award_id)
+
+        # self.tree.ExpandAllChildren(self.root)  # при необходимости
+
         self.last_message = DEF_FUT_LABEL
         self.update_footer_message(self.last_message)
-
     
     def setup_detail_views(self):
         """ метод для создания всех панелей/виджетов для разных режимов """
@@ -477,7 +478,6 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
 
             if not target_category or target_category not in self.awards_data:
                 wx.MessageBox("Не вибрано категорію для створення.", "Помилка", wx.OK | wx.ICON_ERROR)
-                # Возможно, вернуться в режим "ничего не выбрано" или выбор категории
                 self.show_view("no_selection")
                 return
 
@@ -614,31 +614,30 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
         Использует индексы списка RankingValues.
         Возвращает числовое ранжирование (int) или None, если название не найдено."""
         try:
-            # Находим индекс названия категории в списке RankingValues
-            # Это и есть числовое значение ранжирования.
             ranking_value = RankingValues.index(category_name)
             return ranking_value
         except ValueError:
-            # Название категории не найдено в списке RankingValues 
-            # (не должно происходить, если дерево строится по RankingValues)
-            return None # Или вернуть значение по умолчанию для ошибки
+            return None 
+
 
     def on_cancel_edit(self, event):
         # Сбрасываем временные данные изображения
         self.loaded_image_blob = None
         self.edit_mode = None # Выходим из режима редактирования/создания
 
+        # Восстанавливаем дерево в исходное состояние
+        self.refresh_tree()  
         # Решаем, что показать после отмены
         if self.current_award_key:
-            # Если отменяли редактирование существующей награды, возвращаемся к ее просмотру
+            # Если отменяли редактирование существующей награды, возвращаемся к её просмотру
             category, award_name = self.current_award_key
             self.show_award_view(category, award_name)
         else:
             # Если отменяли создание новой награды, возвращаемся в режим "ничего не выбрано"
             self.show_view("no_selection")
+
         self.last_message = "Редагування скасовано."
         self.update_footer_message(self.last_message)
-
 
     def on_delete_award(self, event):
         """ Метод удаления записи о награде из БД """
@@ -744,6 +743,15 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
         # Обновляем awards_data
         award_data = self.awards_data[source_category].pop(source_text)
 
+        if dest_category not in self.awards_data:
+            self.awards_data[dest_category] = {}
+
+        self.awards_data[dest_category][source_text] = award_data
+
+        # если категории ещё нет в awards_data — создаём
+        if dest_category not in self.awards_data:
+            self.awards_data[dest_category] = {}
+
         self.awards_data[dest_category][source_text] = award_data
 
         # Вставляем новый элемент в нужную категорию
@@ -779,15 +787,35 @@ class DovidnykPanel(scrolled.ScrolledPanel): # ScrolledPanel для поддер
         self.current_award_id = new_award_id
 
 
+    # def on_create_award(self, event):
+    #     """ Обработчик кнопки "Створити" в режиме "ничего не выбрано" """
+    #     if self.selected_category_for_creation:
+    #         self.edit_mode = 'create' # Устанавливаем режим создания
+    #         self.show_edit_form(None, None) # Передаем None, None для индикации режима создания
+    #         self.last_message = f"Режим створення. Категорія: {self.selected_category_for_creation}"
+    #         self.update_footer_message(self.last_message)
+    #     else:
+    #         wx.MessageBox("Виберіть категорію для створення нової нагороди.", "Помилка", wx.OK | wx.ICON_ERROR)
+
     def on_create_award(self, event):
-        """ Обработчик кнопки "Створити" в режиме "ничего не выбрано" """
+        """ Обработчик кнопки 'Створити' в режиме 'ничего не выбрано' """
+        if not self.selected_category_for_creation:
+            # Берём первую категорию из RankingValues, которая есть в self.awards_data или вообще первую
+            for cat in RankingValues[1:]:  # пропускаем пустую строку
+                if cat in self.awards_data:
+                    self.selected_category_for_creation = cat
+                    break
+            else:
+                # Если в awards_data нет ни одной категории, берем первую из RankingValues
+                self.selected_category_for_creation = RankingValues[1]
+
         if self.selected_category_for_creation:
-            self.edit_mode = 'create' # Устанавливаем режим создания
-            self.show_edit_form(None, None) # Передаем None, None для индикации режима создания
+            self.edit_mode = 'create'
+            self.show_edit_form(None, None)
             self.last_message = f"Режим створення. Категорія: {self.selected_category_for_creation}"
             self.update_footer_message(self.last_message)
         else:
-            wx.MessageBox("Виберіть категорію для створення нової нагороди.", "Помилка", wx.OK | wx.ICON_ERROR)
+            wx.MessageBox("Не вдалося визначити категорію для створення нової нагороди.", "Помилка", wx.OK | wx.ICON_ERROR)
 
 
     def on_edit_award(self, event):        
