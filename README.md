@@ -8,17 +8,17 @@ Follow these steps to set up the development environment and compile the applica
 Python 3.11: Ensure Python 3.11 is installed. You can download it from python.org.
 Ensure is installed and configured in your System PATH.
 
-2. Project Setup
+2. Project Setup               
 Download project from Git or clone
 
 In PowerShell
-cd <Project DIR>
+cd Project_DIR 
 
 Create a virtual environment            
 python -m venv venv
 
-Activate the virtual environment       
-For PowerShell:     
+Activate the virtual environment                   
+For PowerShell:                    
 .\venv\Scripts\Activate.ps1
 
 For CMD:              
