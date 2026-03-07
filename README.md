@@ -30,9 +30,7 @@ Once the virtual environment is active (venv), run the following commands:
 python -m pip install --upgrade pip
 
 Install required packages             
-pip install wxPython            
-pip install pysqlcipher3-binary            
-pip install Pillow bs4 openpyxl requests pyinstaller          
+pip install wxPython pysqlcipher3-binary Pillow bs4 openpyxl requests pyinstaller          
 
 4. Verification and Building
 
