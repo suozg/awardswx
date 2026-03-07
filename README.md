@@ -1,3 +1,59 @@
+* Build and Setup Instructions *
+
+** WINDOWS **
+
+Follow these steps to set up the development environment and compile the application.
+
+1. Prerequisites
+Python 3.11: Ensure Python 3.11 is installed. You can download it from python.org.
+Ensure is installed and configured in your System PATH.
+
+2. Project Setup
+Download project from Git or clone
+
+In PowerShell
+cd <Project DIR>
+
+# Create a virtual environment
+python -m venv venv
+
+# Activate the virtual environment
+# For PowerShell:
+.\venv\Scripts\Activate.ps1
+# For CMD:
+.\venv\Scripts\activate.bat
+
+3. Install Dependencies
+Once the virtual environment is active (venv), run the following commands:
+
+PowerShell
+# Upgrade pip to the latest version
+python -m pip install --upgrade pip
+
+# Install required packages
+pip install wxPython
+pip install pysqlcipher3-binary
+pip install Pillow bs4 openpyxl requests pyinstaller
+
+4. Verification and Building
+
+# Update your code in database_logic.py
+# From: from pysqlcipher3 import dbapi2 as sqlite3
+# To:   from sqlcipher3 import dbapi2 as sqlite3
+
+Test Run:
+python main.py
+
+If the application starts successfully, use PyInstaller to build the .exe file using your spec file:
+
+pyinstaller main.spec
+
+
+
+*----------------------------------*
+
+** LINUX **
+
 sudo apt update
 
 sudo apt install build-essential tcl-dev autoconf automake libtool openssl libssl-dev python3-wxgtk4.0 

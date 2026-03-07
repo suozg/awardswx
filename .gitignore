@@ -13,7 +13,7 @@ venv/
 .idea/
 *.pyc
 .DS_Store
-*.bin
-*.exe
+#*.bin
+#*.exe
 check_inn/check_inn
 check_inn/check_inn_old
