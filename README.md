@@ -9,41 +9,39 @@ Python 3.11: Ensure Python 3.11 is installed. You can download it from python.or
 Ensure is installed and configured in your System PATH.
 
 2. Project Setup               
-Download project from Git or clone
+    2.1 Download project from Git or clone
 
-In PowerShell
-cd Project_DIR 
+    2.2 In PowerShell
+        cd Project_DIR 
 
-Create a virtual environment            
-python -m venv venv
+    2.3 Create a virtual environment            
+        python -m venv venv
 
-Activate the virtual environment                   
-For PowerShell:                    
-.\venv\Scripts\Activate.ps1
+    2.4 Activate the virtual environment                   
+        For PowerShell:                    
+            .\venv\Scripts\Activate.ps1
 
-For CMD:              
-.\venv\Scripts\activate.bat
+        For CMD:              
+            .\venv\Scripts\activate.bat
 
 3. Install Dependencies
 Once the virtual environment is active (venv), run the following commands:
-
-python -m pip install --upgrade pip
+    python -m pip install --upgrade pip
 
 Install required packages             
-pip install wxPython pysqlcipher3-binary Pillow bs4 openpyxl requests pyinstaller          
+    pip install wxPython pysqlcipher3-binary Pillow bs4 openpyxl requests pyinstaller          
 
 4. Verification and Building
 
-Update your code in database_logic.py              
-From: from pysqlcipher3 import dbapi2 as sqlite3            
-To:   from sqlcipher3 import dbapi2 as sqlite3            
+    4.1 Update your code in database_logic.py              
+        From: from pysqlcipher3 import dbapi2 as sqlite3            
+        To:   from sqlcipher3 import dbapi2 as sqlite3            
 
-Test Run: 
-python main.py
+    4.2 Test Run: 
+        python main.py
 
-If the application starts successfully, use PyInstaller to build the .exe file using your spec file:
-
-pyinstaller main.spec
+    4.3 If the application starts successfully, use PyInstaller to build the .exe file using your spec file:
+        pyinstaller main.spec
 
 
 
