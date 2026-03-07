@@ -1,5 +1,5 @@
 # Download 
-(https://github.com/suozg/awardswx/tree/releases)
+(https://github.com/suozg/awardswx/tree/main/release)
 
 # Build and Setup Instructions
 
