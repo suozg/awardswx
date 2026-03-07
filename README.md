@@ -1,6 +1,6 @@
-#Build and Setup Instructions
+# Build and Setup Instructions
 
-##WINDOWS
+## WINDOWS
 
 Follow these steps to set up the development environment and compile the application.
 
@@ -40,7 +40,7 @@ Update your code in database_logic.py
 From: from pysqlcipher3 import dbapi2 as sqlite3            
 To:   from sqlcipher3 import dbapi2 as sqlite3            
 
-Test Run:
+Test Run: 
 python main.py
 
 If the application starts successfully, use PyInstaller to build the .exe file using your spec file:
@@ -50,14 +50,12 @@ pyinstaller main.spec
 
 
 
-##LINUX
+## LINUX
 
-sudo apt update
-
-sudo apt install build-essential tcl-dev autoconf automake libtool openssl libssl-dev python3-wxgtk4.0 
-
-git clone https://github.com/sqlcipher/sqlcipher.git
-cd sqlcipher
+sudo apt update             
+sudo apt install build-essential tcl-dev autoconf automake libtool openssl libssl-dev python3-wxgtk4.0               
+git clone https://github.com/sqlcipher/sqlcipher.git               
+cd sqlcipher          
 
 собираем с поддержкой fts3
 ./configure \
@@ -72,28 +70,25 @@ cd sqlcipher
 make
 sudo make install
 
-sudo mkdir -p /usr/local/include/sqlcipher
-sudo ln -sf /usr/local/include/sqlite3.h /usr/local/include/sqlcipher/sqlite3.h
-sudo ln -sf /usr/local/include/sqlite3ext.h /usr/local/include/sqlcipher/sqlite3ext.h
+sudo mkdir -p /usr/local/include/sqlcipher              
+sudo ln -sf /usr/local/include/sqlite3.h /usr/local/include/sqlcipher/sqlite3.h                 
+sudo ln -sf /usr/local/include/sqlite3ext.h /usr/local/include/sqlcipher/sqlite3ext.h              
 
-sudo ln -sf /usr/local/lib/libsqlite3.so /usr/local/lib/libsqlcipher.so
-sudo ln -sf /usr/local/lib/libsqlite3.so.3.50.4 /usr/local/lib/libsqlcipher.so.3
-
-python3 -m venv --system-site-packages venv
-
-source venv/bin/activate
-
-python -m pip install --upgrade pip setuptools wheel
-export CFLAGS="-I/usr/local/include"i
-export LDFLAGS="-L/usr/local/lib -lcrypto"
-pip install --no-binary :all: git+https://github.com/rigglemania/pysqlcipher3
+sudo ln -sf /usr/local/lib/libsqlite3.so /usr/local/lib/libsqlcipher.so              
+sudo ln -sf /usr/local/lib/libsqlite3.so.3.50.4 /usr/local/lib/libsqlcipher.so.3               
+python3 -m venv --system-site-packages venv             
+source venv/bin/activate               
+python -m pip install --upgrade pip setuptools wheel               
+export CFLAGS="-I/usr/local/include"              
+export LDFLAGS="-L/usr/local/lib -lcrypto"            
+pip install --no-binary :all: git+https://github.com/rigglemania/pysqlcipher3             
 
 cd awardswx_dir
 
-добавить в venv/bin/activate
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+добавить в venv/bin/activate            
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH              
 
-запуск
+запуск 
 python main.py
 
-pip install openpyxl requests Pyinstaller
+pip install openpyxl requests Pyinstaller             
