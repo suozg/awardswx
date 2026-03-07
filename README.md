@@ -1,6 +1,6 @@
-* Build and Setup Instructions *
+#Build and Setup Instructions
 
-** WINDOWS **
+##WINDOWS
 
 Follow these steps to set up the development environment and compile the application.
 
@@ -14,32 +14,31 @@ Download project from Git or clone
 In PowerShell
 cd <Project DIR>
 
-# Create a virtual environment
+Create a virtual environment            
 python -m venv venv
 
-# Activate the virtual environment
-# For PowerShell:
+Activate the virtual environment       
+For PowerShell:     
 .\venv\Scripts\Activate.ps1
-# For CMD:
+
+For CMD:              
 .\venv\Scripts\activate.bat
 
 3. Install Dependencies
 Once the virtual environment is active (venv), run the following commands:
 
-PowerShell
-# Upgrade pip to the latest version
 python -m pip install --upgrade pip
 
-# Install required packages
-pip install wxPython
-pip install pysqlcipher3-binary
-pip install Pillow bs4 openpyxl requests pyinstaller
+Install required packages             
+pip install wxPython            
+pip install pysqlcipher3-binary            
+pip install Pillow bs4 openpyxl requests pyinstaller          
 
 4. Verification and Building
 
-# Update your code in database_logic.py
-# From: from pysqlcipher3 import dbapi2 as sqlite3
-# To:   from sqlcipher3 import dbapi2 as sqlite3
+Update your code in database_logic.py              
+From: from pysqlcipher3 import dbapi2 as sqlite3            
+To:   from sqlcipher3 import dbapi2 as sqlite3            
 
 Test Run:
 python main.py
@@ -50,9 +49,8 @@ pyinstaller main.spec
 
 
 
-*----------------------------------*
 
-** LINUX **
+##LINUX
 
 sudo apt update
 
@@ -61,7 +59,7 @@ sudo apt install build-essential tcl-dev autoconf automake libtool openssl libss
 git clone https://github.com/sqlcipher/sqlcipher.git
 cd sqlcipher
 
-# собираем с поддержкой fts3
+собираем с поддержкой fts3
 ./configure \
     CFLAGS="-DSQLITE_HAS_CODEC \
             -DSQLITE_TEMP_STORE=2 \
@@ -92,10 +90,10 @@ pip install --no-binary :all: git+https://github.com/rigglemania/pysqlcipher3
 
 cd awardswx_dir
 
-#  добавить в venv/bin/activate
+добавить в venv/bin/activate
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
-# запуск
+запуск
 python main.py
 
 pip install openpyxl requests Pyinstaller
