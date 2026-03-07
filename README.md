@@ -1,3 +1,6 @@
+# Download 
+(https://github.com/suozg/awardswx/tree/releases)
+
 # Build and Setup Instructions
 
 ## WINDOWS
