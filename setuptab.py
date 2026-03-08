@@ -210,7 +210,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         dir_picker_sizer.Add(self.report_dir_picker, 1, wx.EXPAND)
 
         report_settings_box.Add(dir_picker_sizer, 0, wx.EXPAND | wx.ALL, 5)
-        report_settings_box.Add(wx.StaticText(report_settings_box.GetStaticBox(), label=" Вигляд таблиць "), 0, wx.ALL | wx.ALIGN_LEFT, 5) # OK
+        report_settings_box.Add(wx.StaticText(report_settings_box.GetStaticBox(), label=" Наповнення таблиць "), 0, wx.ALL | wx.ALIGN_LEFT, 5) # OK
 
         # --- (додавання чекбоксів колонок) ---
         num_cols_per_row_report = 5
@@ -234,7 +234,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         # Чекбокси РНОКПП та Дати народження
         self.rno_checkbox = wx.CheckBox(report_settings_box.GetStaticBox(), label=" РНОКПП")
         self.rno_checkbox.SetToolTip(ALL_COLUMN_LABELS[15] if 15 < len(ALL_COLUMN_LABELS) else "РНОКПП") # Tooltip
-        self.dob_checkbox = wx.CheckBox(report_settings_box.GetStaticBox(), label=" дата народження")
+        self.dob_checkbox = wx.CheckBox(report_settings_box.GetStaticBox(), label=" Дата народження")
         self.dob_checkbox.SetToolTip(ALL_COLUMN_LABELS[16] if 16 < len(ALL_COLUMN_LABELS) else "Дата народження") # Tooltip
 
         # Встановлення початкового значення для РНОКПП та Дати народження
