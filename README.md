@@ -1,3 +1,11 @@
+# AWARDS v.4.1
+
+Програма для роботи з нагородженнями
+
+![Awards_4.1](screenshots/Screenshot%202025-06-21%2015.28.26.png)
+
+----
+
 # Download 
 (https://github.com/suozg/awardswx/tree/main/release)
 
