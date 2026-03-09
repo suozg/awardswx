@@ -43,7 +43,7 @@ Once the virtual environment is active (venv), run the following commands:
 
         python -m pip install --upgrade pip
 
-Install required packages
+    4.1 Install required packages
 
         pip install wxPython pysqlcipher3-binary Pillow bs4 openpyxl requests pyinstaller          
 
