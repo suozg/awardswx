@@ -45,7 +45,7 @@ Once the virtual environment is active (venv), run the following commands:
 
     3.1 Install required packages
 
-        pip install wxPython pysqlcipher3-binary Pillow bs4 openpyxl requests pyinstaller          
+        pip install wxPython sqlcipher3-wheels Pillow bs4 openpyxl requests pyinstaller          
 
 4. Verification and Building
 
