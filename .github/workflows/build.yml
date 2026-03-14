@@ -10,26 +10,27 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip setuptools wheel
-        pip install wxPython Pillow bs4 openpyxl requests pyinstaller
-        pip install sqlcipher3-wheels
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install wxPython Pillow bs4 openpyxl requests pyinstaller
+          pip install sqlcipher3-wheels
 
-    - name: Build with PyInstaller
-      run: pyinstaller --clean main.spec
+      - name: Build with PyInstaller
+        run: pyinstaller --clean main.spec
 
-    - name: Create GitHub Release and upload exe
-      uses: ncipollo/release-action@v1
-      with:
-        tag: v${{ github.run_number }}   # автоматический номер версии
-        name: Windows Exe v${{ github.run_number }}
-        files: dist/main.exe
+      - name: Upload exe to GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ github.run_number }}
+          name: Windows Exe v${{ github.run_number }}
+          artifacts: dist/main.exe
+          token: ${{ secrets.GITHUB_TOKEN }}
