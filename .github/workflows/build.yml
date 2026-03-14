@@ -5,17 +5,16 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -28,7 +27,9 @@ jobs:
     - name: Build with PyInstaller
       run: pyinstaller --clean main.spec
 
-    - uses: actions/upload-artifact@v4
+    - name: Create GitHub Release and upload exe
+      uses: ncipollo/release-action@v1
       with:
-        name: awardswx-windows-exe
-        path: dist/
+        tag: v${{ github.run_number }}   # автоматический номер версии
+        name: Windows Exe v${{ github.run_number }}
+        files: dist/main.exe
