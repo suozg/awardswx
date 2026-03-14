@@ -5,6 +5,9 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: windows-latest
@@ -16,24 +19,13 @@ jobs:
       with:
         python-version: "3.11"
 
-    - name: Install SQLCipher
-      run: |
-        git clone https://github.com/microsoft/vcpkg
-        .\vcpkg\bootstrap-vcpkg.bat
-        .\vcpkg\vcpkg install sqlcipher:x64-windows
-
-    - name: Set SQLCipher env
-      run: |
-        echo "INCLUDE=%CD%\vcpkg\installed\x64-windows\include" >> $env:GITHUB_ENV
-        echo "LIB=%CD%\vcpkg\installed\x64-windows\lib" >> $env:GITHUB_ENV
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install wxPython Pillow bs4 openpyxl requests pyinstaller
-        pip install sqlcipher3
+        pip install sqlcipher3-wheels
 
-    - name: Build exe
+    - name: Build with PyInstaller
       run: pyinstaller --clean main.spec
 
     - uses: actions/upload-artifact@v4
