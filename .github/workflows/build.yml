@@ -18,7 +18,14 @@ jobs:
 
     - name: Install SQLCipher
       run: |
-        choco install sqlcipher -y
+        git clone https://github.com/microsoft/vcpkg
+        .\vcpkg\bootstrap-vcpkg.bat
+        .\vcpkg\vcpkg install sqlcipher:x64-windows
+
+    - name: Set SQLCipher env
+      run: |
+        echo "INCLUDE=%CD%\vcpkg\installed\x64-windows\include" >> $env:GITHUB_ENV
+        echo "LIB=%CD%\vcpkg\installed\x64-windows\lib" >> $env:GITHUB_ENV
 
     - name: Install dependencies
       run: |
@@ -27,8 +34,7 @@ jobs:
         pip install sqlcipher3
 
     - name: Build exe
-      run: |
-        pyinstaller --clean main.spec
+      run: pyinstaller --clean main.spec
 
     - uses: actions/upload-artifact@v4
       with:
