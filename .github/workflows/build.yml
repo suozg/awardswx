@@ -16,11 +16,15 @@ jobs:
       with:
         python-version: "3.11"
 
+    - name: Install SQLCipher
+      run: |
+        choco install sqlcipher -y
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install wxPython Pillow bs4 openpyxl requests pyinstaller
-        pip install sqlcipher3-binary
+        pip install sqlcipher3
 
     - name: Build exe
       run: |
