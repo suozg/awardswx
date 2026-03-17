@@ -9,6 +9,14 @@
 # Download 
 (https://github.com/suozg/awardswx/tree/main/release)
 
+Приклад бази даних (awards_0v4e.db). Пароль - 1.
+
+Виконати програму з цим файлом 
+```
+awardswx.exe -c awards_0v4e.db
+```
+
+
 # Build and Setup Instructions
 
 ## WINDOWS
