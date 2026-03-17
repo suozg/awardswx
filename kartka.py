@@ -16,7 +16,7 @@ from database_logic import (
     execute_query
 )
 
-from ui_utils import load_image_from_blob, AwardSearchHelper
+from ui_utils import load_image_from_blob, ComboSearchHelper
 
 AWARD_IMAGE_SIZE = 80 # размер картинки
 CURRENT_DATA = wx.DateTime.Now()
@@ -1202,58 +1202,73 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
     def on_award_selected(self, event):
         """  ВСТАНОВЛЮЄМО КАРТИНКУ НАГОРОДИ  """
-        selected_index = self.award_ctrl.GetSelection()
-        selected_award_name = self.award_ctrl.GetString(selected_index)
-        self.selected_award_id = None # Скидаємо
+        # Активуємо прапорець, щоб хелпер ігнорував зміну тексту, 
+        # яка зараз відбудеться через вибір елемента
+        self._is_programmatic_award_change = True
+        
+        try:
+            selected_index = self.award_ctrl.GetSelection()
+            selected_award_name = self.award_ctrl.GetString(selected_index)
+            self.selected_award_id = None # Скидаємо
 
-        image_blob = None # Змінна для зберігання BLOB зображення
-        found_award_details = None # Для перевірки, чи знайшли нагороду в awards_data
+            image_blob = None # Змінна для зберігання BLOB зображення
+            found_award_details = None # Для перевірки, чи знайшли нагороду в awards_data
 
-        # Шукаємо BLOB зображення, якщо вибрано валідну назву нагороди
-        if selected_award_name and selected_award_name not in [""]:
+            # Шукаємо BLOB зображення, якщо вибрано валідну назву нагороди
+            if selected_award_name and selected_award_name not in [""]:
 
-            if self.awards_data:
-                # Проходимо по всіх категоріях рангів у awards_data
-                for ranking_desc, award_dict in self.awards_data.items():
-                    # Перевіряємо, чи внутрішній словник award_dict не порожній і чи містить нашу назву як ключ
-                    if award_dict and selected_award_name in award_dict:
-                        found_award_details = award_dict[selected_award_name]
-                        self.selected_award_id = award_dict[selected_award_name]["award_id"]
-                        # Отримуємо BLOB зображення за ключем "image"
-                        image_blob = found_award_details.get("image") # .get безпечніше, поверне None якщо "image" немає
-                        break # Зупиняємо перебір категорій, оскільки нагороду знайдено
+                if self.awards_data:
+                    # Проходимо по всіх категоріях рангів у awards_data
+                    for ranking_desc, award_dict in self.awards_data.items():
+                        # Перевіряємо, чи внутрішній словник award_dict не порожній і чи містить нашу назву як ключ
+                        if award_dict and selected_award_name in award_dict:
+                            found_award_details = award_dict[selected_award_name]
+                            self.selected_award_id = award_dict[selected_award_name]["award_id"]
+                            # Отримуємо BLOB зображення за ключем "image"
+                            image_blob = found_award_details.get("image") # .get безпечніше, поверне None якщо "image" немає
+                            break # Зупиняємо перебір категорій, оскільки нагороду знайдено
+        
+            bitmap_to_set = None # Bitmap, який буде встановлено 
+
+            if image_blob:
+                # Якщо BLOB зображення нагороди знайдено, завантажуємо його
+                try:
+                    if 'load_image_from_blob' in globals() and callable(load_image_from_blob):
+                         bitmap_to_set = load_image_from_blob(image_blob, max_dim=AWARD_IMAGE_SIZE)
+                         if not (bitmap_to_set and bitmap_to_set.IsOk()):
+                             bitmap_to_set = None # Якщо Bitmap невалідний, переходимо до стандартного
+                    else:
+                         bitmap_to_set = None # Якщо функція недоступна, переходимо до стандартного
+
+                except Exception as e:
+                    bitmap_to_set = None # У випадку винятку, переходимо до стандартного
+
+            # Якщо bitmap_to_set все ще None 
+            if bitmap_to_set is None:
+                 if self.default_award_bitmap and self.default_award_bitmap.IsOk():
+                      bitmap_to_set = self.default_award_bitmap
+                 else:
+                      # Абсолютний fallback: порожній Bitmap
+                      empty_fallback = wx.Bitmap(AWARD_IMAGE_SIZE, AWARD_IMAGE_SIZE)
+                      dc = wx.MemoryDC(empty_fallback)
+                      dc.SetBackground(wx.Brush(wx.RED)); dc.Clear(); del dc
+                      bitmap_to_set = empty_fallback
+
+            if self.award_image_display: # Перевіряємо, чи контрол існує
+                self.award_image_display.SetBitmap(bitmap_to_set)
+
+            self.Layout() 
+
+        finally:
+            # скидаємо прапорець через CallAfter, 
+            # щоб він залишався True, поки подія тексту повністю не обробиться
+            wx.CallAfter(self._reset_programmatic_flag)
     
-        bitmap_to_set = None # Bitmap, який буде встановлено 
+        if event:
+            event.Skip()
 
-        if image_blob:
-            # Якщо BLOB зображення нагороди знайдено, завантажуємо його
-            try:
-                if 'load_image_from_blob' in globals() and callable(load_image_from_blob):
-                     bitmap_to_set = load_image_from_blob(image_blob, max_dim=AWARD_IMAGE_SIZE)
-                     if not (bitmap_to_set and bitmap_to_set.IsOk()):
-                         bitmap_to_set = None # Якщо Bitmap невалідний, переходимо до стандартного
-                else:
-                     bitmap_to_set = None # Якщо функція недоступна, переходимо до стандартного
-
-            except Exception as e:
-                bitmap_to_set = None # У випадку винятку, переходимо до стандартного
-
-        # Якщо bitmap_to_set все ще None 
-        if bitmap_to_set is None:
-             if self.default_award_bitmap and self.default_award_bitmap.IsOk():
-                  bitmap_to_set = self.default_award_bitmap
-             else:
-                  # Абсолютний fallback: порожній Bitmap
-                  empty_fallback = wx.Bitmap(AWARD_IMAGE_SIZE, AWARD_IMAGE_SIZE)
-                  dc = wx.MemoryDC(empty_fallback)
-                  dc.SetBackground(wx.Brush(wx.RED)); dc.Clear(); del dc
-                  bitmap_to_set = empty_fallback
-
-        if self.award_image_display: # Перевіряємо, чи контрол існує
-            self.award_image_display.SetBitmap(bitmap_to_set)
-
-        self.Layout() 
-
+    def _reset_programmatic_flag(self):
+        self._is_programmatic_award_change = False
 
     # Функции обработки чекбоксов 
     def ctrl_meed_dead_checkbox(self, event):
@@ -1342,17 +1357,18 @@ class KartkaPanel(scrolled.ScrolledPanel):
                     # Якщо не існує, створюємо його (це відбудеться лише при першому виклику)
                     self.award_ctrl = wx.ComboBox(self, choices=self._loaded_award_names, style=wx.CB_DROPDOWN)
                     self.award_ctrl.Bind(wx.EVT_COMBOBOX, self.on_award_selected) # Прив'язуємо обробник подій
-                    # Також створюємо AwardSearchHelper лише один раз
-                    self.award_search_helper = AwardSearchHelper(self.award_ctrl)
+                    # Також створюємо ComboSearchHelper лише один раз
+                    self.award_search_helper = ComboSearchHelper(self.award_ctrl, kartka_panel_instance=self)
+                    #self.award_search_helper = ComboSearchHelper(self.award_ctrl)
                 else:
                     # Якщо вже існує, просто оновлюємо його елементи
                     self.award_ctrl.Clear()
                     self.award_ctrl.AppendItems(self._loaded_award_names)
                     self.award_ctrl.SetSelection(-1) # Скинути вибір
 
-                # Оновлюємо дані в AwardSearchHelper, незалежно від того, чи він щойно створений чи ні
+                # Оновлюємо дані в ComboSearchHelper, незалежно від того, чи він щойно створений чи ні
                 if hasattr(self, 'award_search_helper') and self.award_search_helper:
-                    self.award_search_helper.set_award_names(self._loaded_award_names)
+                    self.award_search_helper.set_items(self._loaded_award_names)
 
             else:
                 # Обробка випадку, коли курсор не був створений

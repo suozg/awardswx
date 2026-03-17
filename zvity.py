@@ -15,7 +15,7 @@ from database_logic import (
     get_formatted_unique_awarded_distinctions,
     RankingValues 
 )
-from ui_utils import load_image_from_blob, ReportGeneratorWx, AwardSearchHelper  
+from ui_utils import load_image_from_blob, ReportGeneratorWx, ComboSearchHelper  
 
 # --- Константи ---
 # Значення для радіокнопок категорії осіб (MeedvarR1_value)
@@ -142,6 +142,8 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
         self.selected_award_id = None
         
+        self._submission_loaded = False  # флаг щоб не тригерився список      
+        
         # Прив'язка обробника закриття вікна
         self.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
 
@@ -267,7 +269,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
             self.award_name_combo.Clear()
             if self._loaded_award_names:
                 self.award_name_combo.SetItems(self._loaded_award_names)
-                self.award_search_helper.set_award_names(self._loaded_award_names)
+                self.award_search_helper.set_items(self._loaded_award_names)
 
             # Вмикаємо комбобокс, тільки якщо чекбокс все ще активний
             is_by_name_checked = self.award_by_name_checkbox.GetValue()
@@ -436,20 +438,16 @@ class Tab4Panel(scrolled.ScrolledPanel):
         # Вибір накладної
         self.consignment_label = wx.StaticText(parent_panel, label="накладна:")
         handover_sizer.Add(self.consignment_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 3)
-
-        self.consignment_combo = wx.ComboBox(parent_panel, choices=[], style=wx.CB_READONLY | wx.CB_SORT, size=(120,-1)) 
-
+        self.consignment_combo = wx.ComboBox(parent_panel, choices=[], style=wx.CB_DROPDOWN, size=(120,-1)) 
         handover_sizer.Add(self.consignment_combo, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 3)
-
         self.consignment_count_label = wx.StaticText(parent_panel, label="") # Початковий лічильник
         self.consignment_count_label.SetMinSize((50, -1)) # Встановлюємо мінімальну ширину 50 пікселів (-1 означає автоматичну висоту)
         handover_sizer.Add(self.consignment_count_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 3)
-
         award_sizer.Add(handover_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        self.consignment_search_helper = ComboSearchHelper(self.consignment_combo)
 
         # --- Рядок 2: Тип нагороди (ранг / назва) ---
         award_type_sizer = wx.BoxSizer(wx.HORIZONTAL)
-
         self.award_label = wx.StaticText(parent_panel, label=" Нагорода:")
         award_type_sizer.Add(self.award_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 3)
 
@@ -467,15 +465,13 @@ class Tab4Panel(scrolled.ScrolledPanel):
         # Вибір назви нагороди (заповнюється асинхронно)
         self.award_name_combo = wx.ComboBox(parent_panel, choices=[], style=wx.CB_DROPDOWN, size=(250, -1))
         self.award_name_combo.Enable(False) # Вимкнено за замовчуванням
-        self.award_name_combo.Bind(wx.EVT_COMBOBOX, self.on_award_name_selected) # Обробник вибору
+        self.award_name_combo.Bind(wx.EVT_COMBOBOX, self.on_award_name_selected) # Обробник міняє зображення нагороди поруч
         award_type_sizer.Add(self.award_name_combo, 2, wx.EXPAND | wx.LEFT, 3) # Пропорція 2
-
         award_sizer.Add(award_type_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        self.award_search_helper = ComboSearchHelper(self.award_name_combo)
 
-        self.award_search_helper = AwardSearchHelper(self.award_name_combo)
 
         # ---- рядок 3 -------
-
         # Додаємо чекбокс "Протоколи видачі" тепер у новий рядок
         self.issue_protocols_checkbox = wx.CheckBox(parent_panel, wx.ID_ANY, label="Відсутні протоколи видачі нагород")
         self.issue_protocols_checkbox.Bind(wx.EVT_CHECKBOX, self.on_issue_protocols_toggle)
@@ -483,6 +479,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
         award_sizer.Add(self.issue_protocols_checkbox, 0, wx.ALL | wx.ALIGN_LEFT, 5)
 
         return award_sizer
+
 
     def create_submission_group(self, parent_panel):
         """Створює групу налаштувань для секції 'Подання'."""
@@ -519,7 +516,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
         present_sel_sizer.Add(self.specific_submission_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
 
         # ComboBox для номерів подань
-        self.specific_submission_combo = wx.ComboBox(parent_panel, choices=[], style=wx.CB_READONLY | wx.CB_SORT, size=(250, -1))
+        self.specific_submission_combo = wx.ComboBox(parent_panel, choices=[], style=wx.CB_DROPDOWN, size=(250, -1))
         self.specific_submission_combo.Enable(False) # Вимкнено за замовчуванням
         self.specific_submission_combo.Bind(wx.EVT_COMBOBOX_DROPDOWN, self.on_submission_combo_open) # Завантаження при відкритті
         present_sel_sizer.Add(self.specific_submission_combo, 1, wx.EXPAND | wx.RIGHT, 3) # Пропорція 1
@@ -530,7 +527,10 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
         submission_sizer.Add(present_sel_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
+        self.specific_submission_search_helper = ComboSearchHelper(self.specific_submission_combo)
+        
         return submission_sizer
+
 
     def create_action_buttons(self):
         """Створює праву панель з кнопками дій (Перегляд, Excel, тощо)."""
@@ -584,6 +584,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
         action_sizer.Add(buttons_sizer, 0, wx.EXPAND)
 
         return panel_right
+
 
     # --- Методи оновлення стану UI ---
 
@@ -707,10 +708,8 @@ class Tab4Panel(scrolled.ScrolledPanel):
             self.consignment_combo.Enable(is_issued_selected)
             message = "Нагородження"
 
-
         else: # Якщо активний режим "Подання"
-            # виключаємо комбобокс "накладні"
-            self.consignment_combo.Disable()
+            self.consignment_combo.Disable() # виключаємо комбобокс "накладні"
             # Оновлюємо стан specific_submission_combo на основі specific_submission_checkbox
             # Enable тільки якщо блок Подання активний І чекбокс вибрано
             self.specific_submission_combo.Enable(self.specific_submission_checkbox.GetValue())
@@ -723,9 +722,9 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
         self.update_footer_message(message)
 
-        # Перемалювати елементи, щоб зміни застосувалися
-        self.Refresh()
+        self.Refresh() # Перемалювати елементи, щоб зміни застосувалися
         self.Layout() # Часто корисно після зміни стану віджетів або структури розміщення
+
 
     def _enable_widgets_in_sizer_recursive(self, sizer_item_or_sizer_or_window, enable):
         """
@@ -762,6 +761,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
             # for child in sizer_item_or_sizer_or_window.GetChildren():
             #     self._enable_widgets_in_sizer_recursive(child, enable)
 
+
     def update_unit_civilian_visibility(self):
         #  Показуємо комбо/мітку підрозділів, якщо вибрано БУДЬ-ЯКУ категорію, КРІМ "Усі особи".
         show_unit_group = self.person_category_filter != PERSON_CATEGORY_ALL
@@ -790,6 +790,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
         self.unit_civilian_sizer.Layout() # Оновлюємо горизонтальний сайзер, що містить ці елементи
         self.Layout() # Важливо оновити макет самої панелі
 
+
     def update_consignment_combobox_state(self):
         """Вмикає/вимикає комбобокс накладних залежно від статусу вручення."""
         enable_combo = self.award_handover_status in (AWARD_HANDOVER_STATUS_REMAINING, AWARD_HANDOVER_STATUS_ISSUED)
@@ -802,11 +803,12 @@ class Tab4Panel(scrolled.ScrolledPanel):
             self.consignment_combo.SetValue("") # Очистити вибір
             self.consignment_count_label.SetLabel("")
 
+
     # --- Обробники подій віджетів ---
 
     def on_all_time_toggle(self, event):
-
         """Обробник зміни стану чекбокса 'увесь час'."""
+        self._submission_loaded = False
         self.is_all_time_filter = self.all_time_checkbox.GetValue()
         # Вимкнути вибір дати, якщо вибрано "увесь час"
         self.start_date_picker.Enable(not self.is_all_time_filter)
@@ -835,6 +837,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
             if self.award_handover_status in (AWARD_HANDOVER_STATUS_REMAINING, AWARD_HANDOVER_STATUS_ISSUED):
                 self.on_consignment_combo_open() # оновлюємо стан комбобоксу
 
+        self._submission_loaded = False
         # Тут можна додати додаткову логіку для оновлення звіту чи запиту
         if self.mode_toggle_state == 1:
             self.on_submission_combo_open(None) 
@@ -843,15 +846,15 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
     def on_posthumous_toggle(self, event):
         """Обробник зміни стану чекбокса 'посмертно'."""
+        self._submission_loaded = False
         self.is_posthumous_filter = self.posthumous_checkbox.GetValue()
-        # Тут можна додати логіку для оновлення звіту чи запиту
 
     def on_person_category_change(self, event, category_value):
         """Обробник вибору категорії особи."""
         if event.GetEventObject().GetValue(): # Переконуємось, що це вибрана кнопка
+            self._submission_loaded = False
             self.person_category_filter = category_value
             self.update_unit_civilian_visibility()
-            # Тут можна додати логіку для оновлення звіту чи запиту
 
     def on_civilian_toggle(self, event):
         """Обробник зміни стану чекбокса '= цивільні'."""
@@ -859,8 +862,8 @@ class Tab4Panel(scrolled.ScrolledPanel):
         # Вимкнути вибір підрозділу, якщо вибрано цивільних
         self.unit_combo.Enable(not self.is_civilian_filter)
         if self.is_civilian_filter:
+            self._submission_loaded = False
             self.unit_combo.SetValue("") # Очистити вибір підрозділу
-        # Тут можна додати логіку для оновлення звіту чи запиту
 
     def on_handover_status_change(self, event, status_value):
         """Обробник вибору статусу вручення нагороди."""
@@ -910,7 +913,10 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
                 self.consignment_combo.SetItems(unique_consignment)
                 self.consignment_count_label.SetLabel(str(len(unique_consignment) - 1))
-        
+                
+                if hasattr(self, 'consignment_search_helper'):
+                    self.consignment_search_helper.set_items(unique_consignment)        
+
         except Exception as e:
             self.consignment_count_label.SetLabel("ERROR")
         finally:
@@ -960,14 +966,16 @@ class Tab4Panel(scrolled.ScrolledPanel):
     def on_submission_status_change(self, event, status_value):
         """Обробник вибору статусу подання."""
         if event.GetEventObject().GetValue():
+            self._submission_loaded = False
             self.submission_status_filter = status_value
-            # Тут можна додати логіку для оновлення звіту чи запиту
 
     def on_specific_submission_toggle(self, event):
         """Обробник зміни стану чекбокса 'Окреме подання за №'."""
         if not all(hasattr(self, name) for name in ['specific_submission_checkbox', 'specific_submission_combo', 'submission_count_label']):
              return
 
+        self._submission_loaded = False
+        
         self.is_specific_submission_filter = self.specific_submission_checkbox.GetValue()
         enable_combobox = self.is_specific_submission_filter
         self.specific_submission_combo.Enable(enable_combobox)
@@ -980,12 +988,18 @@ class Tab4Panel(scrolled.ScrolledPanel):
             # Якщо увімкнули, можливо, варто одразу завантажити список
             self.on_submission_combo_open(None) # Імітуємо відкриття
 
-        # TODO: Запустити фільтрацію даних для звіту
-
     def on_submission_combo_open(self, event):
         """Обробник відкриття списку комбобокса номерів подань. Завантажує дані з БД з урахуванням поточних фільтрів."""
         if not all(hasattr(self, name) for name in ['specific_submission_combo', 'submission_count_label']) or not self.cursor:
             return
+
+        if self._submission_loaded:
+            if event: # Перевіряємо, чи існує event перед Skip
+                event.Skip()
+            return
+
+        self._submission_loaded = True
+
         # Очищаємо перед завантаженням
         self.specific_submission_combo.Clear()
         self.submission_count_label.SetLabel("")
@@ -1019,6 +1033,10 @@ class Tab4Panel(scrolled.ScrolledPanel):
             self.specific_submission_combo.SetItems(unique_submissions)
             self.submission_count_label.SetLabel(str(len(unique_submissions) - 1))
        
+            # Оновлюємо хелпер для подань
+            if hasattr(self, 'specific_submission_search_helper'):
+                self.specific_submission_search_helper.set_items(unique_submissions)
+
         except Exception as e:
             self.submission_count_label.SetLabel("ERROR")
         finally:
@@ -1064,6 +1082,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
             # Фільтри для режиму Подання
             "submission_status": self.submission_status_filter if self.mode_toggle_state == 1 else None,
             "specific_submission": self.is_specific_submission_filter if self.mode_toggle_state == 1 else False,
+            #"submission_number": self.specific_submission_combo.GetValue() if self.mode_toggle_state == 1 and self.is_specific_submission_filter else None,
             "submission_number": self.specific_submission_combo.GetValue() if self.mode_toggle_state == 1 and self.is_specific_submission_filter else None,
         }
 

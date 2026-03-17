@@ -58,7 +58,6 @@ class Tab1Panel(wx.Panel):
     # --- Методи построения интерфейса вкладки ---
     def init_ui(self):
         """Ініціалізує елементи користувацького інтерфейсу панелі."""
-        # Усі елементи, які раніше додавалися до self.sizer1, тепер будуть додаватися до self.content_sizer
         # Поле для введення пошукового запиту
         self.entry1 = wx.TextCtrl(self.scroll_win, style=wx.TE_PROCESS_ENTER) # Змінено батьківський елемент
         self.entry1.SetValue("")
@@ -95,6 +94,7 @@ class Tab1Panel(wx.Panel):
         self.content_sizer.Add(title1, 0, wx.CENTER | wx.ALL, 5)
 
 
+        # -----------Л О Г О Т И П -----------
         # Додати зображення лого
         logo_bitmap = None
         # Проверяем, что настройки загружены
@@ -120,11 +120,27 @@ class Tab1Panel(wx.Panel):
             # Placeholder, если логотип не загружен или невалиден
             self.logo_display = wx.StaticBitmap(self.scroll_win, size=(300, 300)) # Змінено батьківський елемент
 
-        # Добавляем контрол логотипа в content_sizer панели
+        # Добавляем контрол логотипа в content_sizer панели (отступ снизу = 30)
         self.logo_display.Bind(wx.EVT_LEFT_DOWN, self.on_t_sizer_click)
-        self.content_sizer.Add(self.logo_display, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        self.content_sizer.Add(self.logo_display, 0, wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, 30)
 
-        # Поле RichTextCtrl для відображення результатів пошуку
+        # ----------С Т А Т И С Т И К А ---------
+        # Створюємо спеціальний контрол для статистики (StaticText замість RichText)
+        self.db_stats_display = wx.StaticText(self.scroll_win, label="", style=wx.ALIGN_CENTER_HORIZONTAL)
+        
+        # Налаштовуємо шрифт (опціонально, щоб був схожий на консольний або чіткий)
+        font = self.db_stats_display.GetFont()
+        font.SetPointSize(10)
+        self.db_stats_display.SetFont(font)
+        self.db_stats_display.SetForegroundColour(wx.Colour(100, 100, 100)) # Сірий колір
+        
+        self.db_stats_display.Hide()
+        # Додаємо до сайзера з прапорцем EXPAND
+        self.content_sizer.Add(self.db_stats_display, 0, wx.EXPAND | wx.TOP | wx.BOTTOM, 10)
+
+
+        # ----------Р Е З У Л Ь Т А Т И   П О И С К А ---------
+        #  Поле RichTextCtrl для відображення результатів пошуку
         self.result1 = wx.richtext.RichTextCtrl(self.scroll_win, style=wx.TE_MULTILINE | wx.TE_RICH2 | wx.TE_READONLY) # Змінено батьківський елемент
         # Приховуємо поле результатів за замовчуванням
         self.result1.Hide()
@@ -133,6 +149,39 @@ class Tab1Panel(wx.Panel):
 
         # Встановлюємо сайзер для ScrolledWindow
         self.scroll_win.SetSizerAndFit(self.content_sizer)
+
+        self.show_db_stats()
+
+   
+    def show_db_stats(self):
+        """Виводить статистику бази даних під логотипом."""
+        # Список таблиць, які цікавлять
+        tables_to_check = ['award', 'presentation', 'law', 'libs', 'meed', 'personality']
+        stats_data = []
+
+        try:
+            for table in tables_to_check:
+                self.cursor.execute(f"SELECT count(*) FROM {table}")
+                count = self.cursor.fetchone()[0]
+                stats_data.append((table, count))
+        except Exception as e:
+            print(f"Помилка підрахунку (search_tab/show_db_stats): {e}")
+            return
+
+        if stats_data:
+            lines = ["", "─" * 30]
+            for name, count in stats_data:
+                lines.append(f"{name.upper()}: {count}")
+            
+            display_text = "\n".join(lines)
+            self.db_stats_display.SetLabel(display_text)
+            
+            self.logo_display.Show(True)
+            self.db_stats_display.Show(True)
+            self.result1.Hide()
+            
+            self.scroll_win.Layout()
+            self.scroll_win.FitInside()
 
 
     def refresh_logo(self):
@@ -172,8 +221,9 @@ class Tab1Panel(wx.Panel):
         try:
             # Виконуємо пошук у базі даних
             self.latest_search_results, stringTab1, imgList, counts_gid01, self.source_data_award_and_presentation = search_q(search_query, self.cursor, self.search_id)
+            
+            self.db_stats_display.Hide() # ховаємо статистику
             self.logo_display.Show(False)
-            # === 💡 Скинути атрибути перед встановленням нового тексту ===
             base_attr = wx.richtext.RichTextAttr()
             self.result1.SetDefaultStyle(base_attr)
             
@@ -268,6 +318,7 @@ class Tab1Panel(wx.Panel):
         """Обробник події кліка по заголовку. Відображає графік нагород."""
         # Очищаємо панель перед відображенням графіка
         self.clear_tab1()
+        self.db_stats_display.Hide() # ХОВАЄМО СТАТИСТИКУ
         self.logo_display.Show(False)
         # Створюємо панель з графіком нагород
         self.graph_panel = AwardGraphPanel(self.scroll_win, self.cursor, START_YEAR, self.element_controls) # Змінено батьківський елемент
@@ -316,8 +367,11 @@ class Tab1Panel(wx.Panel):
         self.result1.Hide()
         # Очищаємо текст у полі результатів
         self.result1.Clear()
-        self.logo_display.Show(True)
 
+        self.show_db_stats()
+       
+        self.logo_display.Show(True)
+        
         # Встановлюємо текст за замовчуванням у футері
         # візуально
         if self.fut_place:
