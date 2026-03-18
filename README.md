@@ -7,7 +7,7 @@
 ----
 
 # Download 
-https://github.com/suozg/awardswx/tree/main/release
+https://github.com/suozg/awardswx/releases/latest
 
 ![Приклад бази даних](awards_0v4e.db)
 
