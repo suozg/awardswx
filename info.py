@@ -63,7 +63,7 @@ class InfoPanel(wx.Panel):
         content_sizer.Add(description_label1, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 8)
 
         # Опис 2
-        description_label2 = wx.StaticText(self, label="2023-2025, Холодов О.В. GPL2.0")
+        description_label2 = wx.StaticText(self, label="2023-2026, Холодов О.В., GPL2.0, GitHub/suozg")
         content_sizer.Add(description_label2, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 8)
 
         # Центруємо весь блок
@@ -145,7 +145,7 @@ class InfoPanel(wx.Panel):
                     self.Layout() # Наказати панелі перекомпонувати вміст за допомогою сайзера
 
         except Exception as e:
-            print(f"Ошибка обновления логотипа: {e}")
+            print(f"Помилка оновленни логотипу: {e}")
             # Хороша практика також оновлювати повідомлення футера у разі помилки
             self.last_footer_message = f"Ошибка обновления логотипа: {e}"
         finally:
