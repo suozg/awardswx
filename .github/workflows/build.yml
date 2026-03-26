@@ -18,10 +18,10 @@ jobs:
     # Перевіряємо, чи є зміни у коді або main.spec
     - name: Check if code changed
       id: codecheck
+      shell: pwsh
       run: |
-        git fetch origin main
-        CHANGED=$(git diff --name-only origin/main HEAD | grep -E '\.py$|\.spec$' || true)
-        echo "changed=$CHANGED" >> $GITHUB_OUTPUT
+        $changed = git diff --name-only origin/main HEAD | Where-Object { $_ -match '\.py$|\.spec$' }
+        Write-Output "changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
 
     # Встановлюємо Python та залежності тільки якщо зміни є
     - uses: actions/setup-python@v5
