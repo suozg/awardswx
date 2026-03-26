@@ -207,6 +207,18 @@ class Tab1Panel(wx.Panel):
         except Exception as e:
             print(f"Ошибка обновления логотипа: {e}")
 
+    # функція відмінювання
+    def get_declension(self, number):
+        n = abs(int(number))
+        if 11 <= n % 100 <= 14:
+            return "осіб"
+        last_digit = n % 10
+        if last_digit == 1:
+            return "особа"
+        if 2 <= last_digit <= 4:
+            return "особи"
+        return "осіб"
+
     def on_search_button(self, event, search_id=None):
         """Обробник події натискання кнопки "Пошук" або Enter у полі вводу."""
         # Отримуємо текст з поля вводу
@@ -244,8 +256,11 @@ class Tab1Panel(wx.Panel):
             if "(невірний)" in stringTab1:
                 on_highlight(self.result1, "(невірний)", stringTab1, wx.Colour(255, 0, 0)) # Червоний колір
             # Формуємо повідомлення для футера на основі результатів
-            if len(self.latest_search_results) != int(counts_gid01):
-                message = f"Знайдено ще {len(self.latest_search_results) - counts_gid01} інші особи без подань чи нагород." # Повідомлення про кількість знайдених
+            diff = len(self.latest_search_results) - int(counts_gid01)
+
+            if diff != 0:
+                word = self.get_declension(diff)
+                message = f"Знайдено ще {diff} {word} без подань чи нагород."
 
             try:
                 image_blobs = get_award_image_blobs_for_search(imgList, counts_gid01, self.cursor)
