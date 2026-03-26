@@ -21,14 +21,14 @@ jobs:
       shell: pwsh
       run: |
         # Получаем измененные файлы относительно origin/main
-        $changed = git diff --name-only HEAD~1 HEAD | Where-Object { $_ -match '\.py$|\.spec$' }
-    
+        $before = "${{ github.event.before }}"
+        $sha = "${{ github.sha }}"
+        $changed = git diff --name-only $before $sha | Where-Object { $_ -match '\.py$|\.spec$' }
         if (-not $changed) {
             Write-Output "No Python or spec files changed, skipping build."
             echo "changed=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
             exit 0
         }
-    
         Write-Output "changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
     
     # Устанавливаем Python и зависимости только если есть изменения
