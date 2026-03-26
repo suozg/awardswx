@@ -54,7 +54,7 @@ Ensure is installed and configured in your System PATH.
     2.2 In PowerShell
    ```
         cd Project_DIR 
-```
+   ```
     2.3 Create a virtual environment
          
    ```
