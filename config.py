@@ -9,7 +9,7 @@ DEF_FUT_LABEL = "Готово"  # Дефолтное сообщение в ст�
 SHOW_MORE_IMAGES = 1
 DEFAULT_FRAME_SIZE = (900, 700)
 TITLE_PROG = "AWARDS 53 SMB LF AFU"
-VERSION = "4.1"
+VERSION = "4.2"
 
 # --- Визначаємо ПОВНИЙ список усіх можливих колонок ---
 # Індекси тут відповідають позиціям даних у кортежі, що повертає fetch_data.ui_utils
