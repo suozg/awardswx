@@ -20,7 +20,7 @@ jobs:
       id: codecheck
       shell: pwsh
       run: |
-        $changed = git diff --name-only origin/main HEAD | Where-Object { $_ -match '\.py$|\.spec$' }
+        $changed = Get-ChildItem -Recurse -File -Include *.py, *.spec | ForEach-Object { $_.FullName }
         Write-Output "changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
 
     # Встановлюємо Python та залежності тільки якщо зміни є
