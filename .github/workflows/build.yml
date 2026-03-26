@@ -14,22 +14,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+      with:
+        fetch-depth: 0
     # Проверяем, есть ли изменения в .py или main.spec
-    - name: Check if code changed
-      id: codecheck
-      shell: pwsh
-      run: |
-        # Получаем измененные файлы относительно origin/main
-        $before = "${{ github.event.before }}"
-        $sha = "${{ github.sha }}"
-        $changed = git diff --name-only $before $sha | Where-Object { $_ -match '\.py$|\.spec$' }
-        if (-not $changed) {
-            Write-Output "No Python or spec files changed, skipping build."
-            echo "changed=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-            exit 0
-        }
-        Write-Output "changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+- name: Check if code changed
+  id: codecheck
+  shell: pwsh
+  run: |
+    # Получаем измененные файлы относительно main
+    git fetch origin main
+    $changed = git diff --name-only origin/main HEAD | Where-Object { $_ -match '\.py$|\.spec$' }
+
+    if (-not $changed) {
+        Write-Output "No Python or spec files changed, skipping build."
+        echo "changed=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+        exit 0
+    }
+
+    Write-Output "changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
     
     # Устанавливаем Python и зависимости только если есть изменения
     - uses: actions/setup-python@v5
