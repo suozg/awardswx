@@ -14,34 +14,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    # Проверяем, есть ли изменения в .py или main.spec
-    - name: Check if code changed
-      id: codecheck
-      shell: pwsh
-      run: |
-        # Получаем измененные файлы относительно main
-        git fetch origin main
-        $changed = git diff --name-only origin/main HEAD | Where-Object { $_ -match '\.py$|\.spec$' }
-    
-        if (-not $changed) {
-            Write-Output "No Python or spec files changed, skipping build."
-            echo "changed=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-            exit 0
-        }
-    
-        Write-Output "changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-    
-    # Устанавливаем Python и зависимости только если есть изменения
+
+    # Устанавливаем Python и зависимости
     - uses: actions/setup-python@v5
-      if: steps.codecheck.outputs.changed != ''
       with:
         python-version: "3.11"
 
     - name: Install dependencies
-      if: steps.codecheck.outputs.changed != ''
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install wxPython Pillow bs4 openpyxl requests pyinstaller
@@ -49,12 +28,10 @@ jobs:
 
     # Сборка с PyInstaller
     - name: Build with PyInstaller
-      if: steps.codecheck.outputs.changed != ''
       run: pyinstaller --clean main.spec
 
-    # Загружаем артефакт только после сборки
+    # Загружаем артефакт
     - uses: actions/upload-artifact@v4
-      if: steps.codecheck.outputs.changed != ''
       with:
         name: awardswx-windows-exe
         path: dist/
