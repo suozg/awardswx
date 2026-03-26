@@ -112,6 +112,7 @@ Once the virtual environment is active (venv), run the following commands:
 
     # добавить в venv/bin/activate системние пакети:            
         export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH              
+
     source venv/bin/activate               
     
    ```
