@@ -51,7 +51,7 @@ Ensure is installed and configured in your System PATH.
 2. Project Setup               
     2.1 Download project from Git or clone
 
-    2.2 In PowerShell
+    2.2 In PowerShell or CMD
    ```
         cd Project_DIR 
    ```
