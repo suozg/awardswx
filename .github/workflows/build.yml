@@ -15,15 +15,23 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # Перевіряємо, чи є зміни у коді або main.spec
+    # Проверяем, есть ли изменения в .py или main.spec
     - name: Check if code changed
       id: codecheck
       shell: pwsh
       run: |
-        $changed = Get-ChildItem -Recurse -File -Include *.py, *.spec | ForEach-Object { $_.FullName }
+        # Получаем измененные файлы относительно origin/main
+        $changed = git diff --name-only origin/main HEAD | Where-Object { $_ -match '\.py$|\.spec$' }
+
+        if (-not $changed) {
+            Write-Output "No Python or spec files changed, skipping build."
+            echo "changed=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+            exit 0
+        }
+
         Write-Output "changed=$changed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
 
-    # Встановлюємо Python та залежності тільки якщо зміни є
+    # Устанавливаем Python и зависимости только если есть изменения
     - uses: actions/setup-python@v5
       if: steps.codecheck.outputs.changed != ''
       with:
@@ -36,12 +44,12 @@ jobs:
         pip install wxPython Pillow bs4 openpyxl requests pyinstaller
         pip install sqlcipher3-wheels
 
-    # Збірка з PyInstaller
+    # Сборка с PyInstaller
     - name: Build with PyInstaller
       if: steps.codecheck.outputs.changed != ''
       run: pyinstaller --clean main.spec
 
-    # Завантажуємо артефакт тільки після збірки
+    # Загружаем артефакт только после сборки
     - uses: actions/upload-artifact@v4
       if: steps.codecheck.outputs.changed != ''
       with:
