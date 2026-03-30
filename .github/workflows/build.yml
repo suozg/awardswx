@@ -1,37 +1,78 @@
-name: Build Windows Exe
+name: Build Windows + Linux
 
 on:
   push:
     branches: ["main"]
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
 
-    # Устанавливаем Python и зависимости
+    # Python
     - uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
+    # Зависимости (разные для Linux/Windows)
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        pip install wxPython Pillow bs4 openpyxl requests pyinstaller
+        pip install Pillow bs4 openpyxl requests pyinstaller
         pip install sqlcipher3-wheels
+        pip install wxPython
 
-    # Сборка с PyInstaller
+    # Сборка
     - name: Build with PyInstaller
       run: pyinstaller --clean main.spec
 
-    # Загружаем артефакт
+    # Артефакты
     - uses: actions/upload-artifact@v4
+      with:
+        name: awardswx-${{ matrix.os }}
+        path: dist/
+
+#name: Build Windows Exe
+#
+#on:
+#  push:
+#    branches: ["main"]
+#  workflow_dispatch:
+#
+#env:
+#  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+#jobs:
+#  build:
+#    runs-on: windows-latest
+
+#    steps:
+#    - uses: actions/checkout@v4
+
+#    # Устанавливаем Python и зависимости
+#    - uses: actions/setup-python@v5
+#      with:
+#        python-version: "3.11"
+
+#    - name: Install dependencies
+#      run: |
+#        python -m pip install --upgrade pip setuptools wheel
+#        pip install wxPython Pillow bs4 openpyxl requests pyinstaller
+#        pip install sqlcipher3-wheels
+
+#    # Сборка с PyInstaller
+#    - name: Build with PyInstaller
+#      run: pyinstaller --clean main.spec
+
+#    # Загружаем артефакт
+#    - uses: actions/upload-artifact@v4
       with:
         name: awardswx-windows-exe
         path: dist/
