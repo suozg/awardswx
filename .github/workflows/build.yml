@@ -73,6 +73,6 @@ jobs:
 
 #    # Загружаем артефакт
 #    - uses: actions/upload-artifact@v4
-      with:
-        name: awardswx-windows-exe
-        path: dist/
+#      with:
+#        name: awardswx-windows-exe
+#        path: dist/
