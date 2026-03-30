@@ -24,6 +24,8 @@ def connect_to_database(passwd, database_file_path):
         # SQLCipher 3 совместимость
         cursor.execute("PRAGMA cipher_compatibility = 3;")  
         cursor.execute("PRAGMA kdf_iter = 64000;")
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA synchronous=NORMAL;")
         # перевірка доступності таблиці
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         if cursor.fetchall():
