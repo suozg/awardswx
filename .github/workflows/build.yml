@@ -1,4 +1,4 @@
-name: Build Windows + Linux
+name: Build Windows + Debian 12
 
 on:
   push:
@@ -6,37 +6,67 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
 
-    runs-on: ${{ matrix.os }}
+  # ---------------- WINDOWS ----------------
+  build-windows:
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    # Python
     - uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
-    # Зависимости (разные для Linux/Windows)
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        pip install Pillow bs4 openpyxl requests pyinstaller
+        pip install wxPython Pillow bs4 openpyxl requests pyinstaller
         pip install sqlcipher3-wheels
-        pip install wxPython
 
-    # Сборка
-    - name: Build with PyInstaller
+    - name: Build exe
       run: pyinstaller --clean main.spec
 
-    # Артефакты
     - uses: actions/upload-artifact@v4
       with:
-        name: awardswx-${{ matrix.os }}
+        name: awardswx-windows
+        path: dist/
+
+  # ---------------- DEBIAN 12 ----------------
+  build-debian:
+    runs-on: ubuntu-latest
+
+    container:
+      image: debian:12
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install system deps
+      run: |
+        apt-get update
+        apt-get install -y \
+          python3 \
+          python3-pip \
+          python3-dev \
+          build-essential \
+          python3-wxgtk4.0 \
+          libgtk-3-0 \
+          libgtk-3-dev \
+          libwebkit2gtk-4.0-dev
+
+    - name: Install Python deps
+      run: |
+        python3 -m pip install --upgrade pip
+        pip3 install Pillow bs4 openpyxl requests pyinstaller
+        pip3 install sqlcipher3-wheels
+
+    - name: Build binary
+      run: pyinstaller --clean main.spec
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: awardswx-debian12
         path: dist/
 
 #name: Build Windows Exe
