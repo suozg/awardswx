@@ -47,7 +47,7 @@ jobs:
         apt-get update
         apt-get install -y \
           python3 \
-          python3-pip \
+          python3-venv \
           python3-dev \
           build-essential \
           python3-wxgtk4.0 \
@@ -55,14 +55,19 @@ jobs:
           libgtk-3-dev \
           libwebkit2gtk-4.0-dev
 
-    - name: Install Python deps
+    - name: Setup venv + install deps
       run: |
-        python3 -m pip install --upgrade pip
-        pip3 install Pillow bs4 openpyxl requests pyinstaller
-        pip3 install sqlcipher3-wheels
+        python3 -m venv venv
+        . venv/bin/activate
+
+        pip install --upgrade pip
+        pip install Pillow bs4 openpyxl requests pyinstaller
+        pip install sqlcipher3-wheels
 
     - name: Build binary
-      run: pyinstaller --clean main.spec
+      run: |
+        . venv/bin/activate
+        pyinstaller --clean main.spec
 
     - uses: actions/upload-artifact@v4
       with:
