@@ -414,21 +414,42 @@ class Tab4Panel(scrolled.ScrolledPanel):
         # Динамічне текстове поле для шляху до файлу
         self.file_path_text = wx.TextCtrl(panel_top, style=wx.TE_READONLY)
         self.file_path_text.SetHint("Виберіть CSV файл зі списком людей...")
-        self.file_path_text.SetMinSize((80, -1)) # Стискається першим при зменшенні вікна
+        self.file_path_text.SetMinSize((80, -1))
 
         # Напис з кількістю завантажених осіб
         self.lbl_csv_info = wx.StaticText(panel_top, label="Файл не вибрано")
-        self.lbl_csv_info.SetMinSize((250, -1)) # Фіксований мінімальний розмір, щоб не ховався текст
+        self.lbl_csv_info.SetMinSize((200, -1))
+
+        # Кнопка очищення CSV / фільтрів
+        self.btn_clear_csv = wx.Button(panel_top, label="✕", size=(40, -1))
+        self.btn_clear_csv.Bind(wx.EVT_BUTTON, self.on_clear_fields)
 
         file_box_sizer.Add(self.btn_browse_csv, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         file_box_sizer.Add(self.file_path_text, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
-        file_box_sizer.Add(self.lbl_csv_info, 0, wx.ALIGN_CENTER_VERTICAL)
+        file_box_sizer.Add(self.lbl_csv_info, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        file_box_sizer.Add(self.btn_clear_csv, 0, wx.ALIGN_CENTER_VERTICAL)
 
         # Додаємо блок нижче радіокнопок
         top_sizer.Add(file_box_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         return panel_top  
 
+    def on_clear_fields(self, event=None):
+        """Очищає завантажений CSV файл та скидає значення поля шлях до файлу."""
+        # Очищення завантаженого датафрейму
+        self.loaded_input_df = None
+        
+        # Скидання текстових полів UI
+        if hasattr(self, 'file_path_text'):
+            self.file_path_text.SetValue("")
+        if hasattr(self, 'lbl_csv_info'):
+            self.lbl_csv_info.SetLabel("Файл не вибрано")
+
+        # Додатково: якщо потрібно скинути інші комбобокси чи фільтри, їх можна очистити тут:
+        # self.unit_combo.SetSelection(0)
+        # self.all_time_checkbox.SetValue(False)
+
+        self.update_footer_message("Дані CSV списку очищено.")
 
     def create_award_group(self, parent_panel):
         """Створює групу налаштувань для секції 'Нагородження'."""
@@ -563,7 +584,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
                     count = len(self.loaded_input_df)
                     has_inn = (self.loaded_input_df["РНОКПП_norm"] != "").sum() if count > 0 else 0
                     
-                    self.lbl_csv_info.SetLabel(f"Завантажено осіб: {count} (з РНОКПП: {has_inn})")
+                    self.lbl_csv_info.SetLabel(f"(ПІБ:{count}/РНОКПП:{has_inn})")
                 except Exception as e:
                     wx.MessageBox(f"Помилка при зчитуванні CSV файлу:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
                     self.lbl_csv_info.SetLabel("Помилка файлу")
