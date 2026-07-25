@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        pip install wxPython Pillow bs4 openpyxl requests pyinstaller
+        pip install wxPython Pillow bs4 openpyxl requests pandas pyinstaller
         pip install sqlcipher3-wheels
 
     - name: Build exe
@@ -61,7 +61,7 @@ jobs:
         . venv/bin/activate
 
         pip install --upgrade pip
-        pip install Pillow bs4 openpyxl requests pyinstaller
+        pip install Pillow bs4 openpyxl requests pandas pyinstaller
         pip install sqlcipher3-wheels
 
     - name: Build binary
