@@ -1,0 +1,160 @@
+сейчас ComparisonReportFrame почти полностью завязан на pandas:
+
+self.input_df — DataFrame.
+db_df = pd.DataFrame(...).
+groupby().
+merge().
+fillna().
+iterrows().
+to_csv().
+
+При этом в остальном проекте (ReportGeneratorWx) данные уже работают как обычный list[tuple], поэтому ComparisonReportFrame можно привести к той же архитектуре и вообще убрать зависимость от pandas.
+
+Что бы я изменил
+1. Убрать pandas
+
+Вместо
+
+import pandas as pd
+
+использовать обычные структуры:
+
+self.result_data = []      # список строк
+self.result_columns = [
+    "Звання",
+    "ПІБ",
+    "Посада",
+    "РНОКПП",
+    "Знайдені нагороди / подання",
+]
+2. parse_input_person_csv()
+
+Пусть возвращает
+
+[
+    {
+        "Звання": "...",
+        "ПІБ": "...",
+        "Посада": "...",
+        "РНОКПП": "...",
+        "ПІБ_norm": "...",
+        "РНОКПП_norm": "...",
+    },
+    ...
+]
+
+никаких DataFrame не нужно.
+
+3. Вместо groupby()
+
+Сейчас:
+
+db_df.groupby(...)
+
+Можно заменить обычным словарём:
+
+db_grouped = {}
+
+for row in db_rows:
+    key = row["ПІБ_norm"]
+
+    if key not in db_grouped:
+        db_grouped[key] = []
+
+    if row["Результат_БД"] not in db_grouped[key]:
+        db_grouped[key].append(row["Результат_БД"])
+
+for key in db_grouped:
+    db_grouped[key] = "; ".join(db_grouped[key])
+4. Вместо merge()
+
+Сейчас:
+
+merged = pd.merge(...)
+
+можно сделать
+
+result = []
+
+for person in self.input_df:
+    result.append({
+        "Звання": person["Звання"],
+        "ПІБ": person["ПІБ"],
+        "Посада": person["Посада"],
+        "РНОКПП": person["РНОКПП"],
+        "Знайдені нагороди / подання":
+            db_grouped.get(person["ПІБ_norm"], "—")
+    })
+5. Grid
+
+Вместо
+
+for row_idx, row in self.result_df.iterrows():
+
+будет
+
+for row_idx, row in enumerate(self.result_data):
+    self.grid.SetCellValue(row_idx, 0, row["Звання"])
+    self.grid.SetCellValue(row_idx, 1, row["ПІБ"])
+    self.grid.SetCellValue(row_idx, 2, row["Посада"])
+    self.grid.SetCellValue(row_idx, 3, row["РНОКПП"])
+    self.grid.SetCellValue(row_idx, 4, row["Знайдені нагороди / подання"])
+6. CSV
+
+Вместо
+
+self.result_df.to_csv(...)
+
+обычный
+
+with open(path, "w", newline="", encoding="utf-8-sig") as f:
+    writer = csv.writer(f, delimiter=";")
+    writer.writerow(self.result_columns)
+
+    for row in self.result_data:
+        writer.writerow([
+            row["Звання"],
+            row["ПІБ"],
+            row["Посада"],
+            row["РНОКПП"],
+            row["Знайдені нагороди / подання"],
+        ])
+7. Поток (threading)
+
+Это как раз стоит сделать не только для загрузки списка наград, но и для ComparisonReportFrame.
+
+Сейчас всё выполняется прямо в конструкторе:
+
+self.process_and_display()
+
+из-за этого окно "подвисает", пока идёт SQL и обработка.
+
+Лучше сделать так:
+
+self.record_count_label.SetLabel("Формування звіту...")
+
+threading.Thread(
+    target=self._worker,
+    daemon=True,
+).start()
+
+где
+
+def _worker(self):
+    result = self.build_report()
+
+    wx.CallAfter(self._update_ui, result)
+
+а
+
+_update_ui()
+
+уже:
+
+создаёт Grid;
+заполняет его;
+обновляет количество записей.
+
+Именно так у тебя уже организована асинхронная загрузка списка наград в zvity.py, поэтому архитектура станет одинаковой в обоих местах.
+
+Я бы вообще переписал ComparisonReportFrame полностью под стиль ReportGeneratorWx: без pandas, с обычными списками и словарями, с обработкой в отдельном потоке и обновлением UI через wx.CallAfter. Это позволит убрать зависимость от pandas из проекта целиком и сделает оба класса единообразными.

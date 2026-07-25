@@ -15,7 +15,11 @@ from database_logic import (
     get_formatted_unique_awarded_distinctions,
     RankingValues 
 )
-from ui_utils import load_image_from_blob, ReportGeneratorWx, ComboSearchHelper  
+
+from ui_utils import (
+    load_image_from_blob, ReportGeneratorWx, ComboSearchHelper,  
+    ComparisonReportFrame, parse_input_person_csv
+)
 
 # --- Константи ---
 # Значення для радіокнопок категорії осіб (MeedvarR1_value)
@@ -278,7 +282,6 @@ class Tab4Panel(scrolled.ScrolledPanel):
 
 
 
-
     # --- Методи побудови інтерфейсу ---
 
     def build_ui(self):
@@ -317,63 +320,52 @@ class Tab4Panel(scrolled.ScrolledPanel):
         self.SetSizer(main_sizer)
         self.SetupScrolling() # Важливо для scrolled.ScrolledPanel
 
+  
     def create_info_group(self):
         """Створює верхню панель з фільтрами дати, категорії осіб, підрозділу."""
         panel_top = wx.Panel(self)
         top_sizer = wx.BoxSizer(wx.VERTICAL)
         panel_top.SetSizer(top_sizer)
 
-        grid_sizer_top = wx.FlexGridSizer(rows=2, cols=7, vgap=5, hgap=5) # Збільшив hgap
-        grid_sizer_top.AddGrowableCol(5, 1) # Колонка з виконавцем розтягується
+        grid_sizer_top = wx.FlexGridSizer(rows=2, cols=7, vgap=5, hgap=5)
+        grid_sizer_top.AddGrowableCol(5, 1)
 
-        # --- Рядок 1 ---
+        # --- Рядок 1: Період, чекбокси та виконавець ---
         lbl_period = wx.StaticText(panel_top, label="Період виборки:")
         grid_sizer_top.Add(lbl_period, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALIGN_RIGHT | wx.ALL, 3)
 
-        # Date pickers
         self.start_date_picker = wx.adv.DatePickerCtrl(panel_top, style=wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY)
-        self.start_date_picker.SetRange(MIN_DATE_WX, today_wx) # Обмежуємо мінімальну дату до 2014
-        self.start_date_picker.SetValue(one_year_ago_wx) # Встановлюємо початкове значення на "рік тому"
-
-        # Прив'язка обробників подій до DatePickerCtrl
+        self.start_date_picker.SetRange(MIN_DATE_WX, today_wx)
+        self.start_date_picker.SetValue(one_year_ago_wx)
         self.start_date_picker.Bind(wx.adv.EVT_DATE_CHANGED, self.on_date_period_changed)        
         grid_sizer_top.Add(self.start_date_picker, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
 
         self.end_date_picker = wx.adv.DatePickerCtrl(panel_top, style=wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY)
-        # Дозволяємо вибирати майбутнє для подань? Якщо ні, то max=today
-        max_date = wx.DateTime(today_dt.day, today_dt.month - 1, today_dt.year + 1) # Наприклад, до наступного року
-        self.end_date_picker.SetRange(MIN_DATE_WX, max_date) # Обмежуємо мінімальну дату до 2014
-        self.end_date_picker.SetValue(today_wx) # Початкове значення для кінцевої дати - сьогодні
-
-        # Прив'язка обробників подій до DatePickerCtrl
+        max_date = wx.DateTime(today_dt.day, today_dt.month - 1, today_dt.year + 1)
+        self.end_date_picker.SetRange(MIN_DATE_WX, max_date)
+        self.end_date_picker.SetValue(today_wx)
         self.end_date_picker.Bind(wx.adv.EVT_DATE_CHANGED, self.on_date_period_changed)
-
         grid_sizer_top.Add(self.end_date_picker, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
 
         self.all_time_checkbox = wx.CheckBox(panel_top, label="увесь час")
-        # self.all_time_checkbox.SetValue(self.is_all_time_filter) # Встановлюється в update_initial_widget_state
         self.all_time_checkbox.Bind(wx.EVT_CHECKBOX, self.on_all_time_toggle)
         grid_sizer_top.Add(self.all_time_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
 
         self.posthumous_checkbox = wx.CheckBox(panel_top, label="посмертно")
-        # self.posthumous_checkbox.SetValue(self.is_posthumous_filter) # Встановлюється в update_initial_widget_state
         self.posthumous_checkbox.Bind(wx.EVT_CHECKBOX, self.on_posthumous_toggle)
         grid_sizer_top.Add(self.posthumous_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
 
-        # Вибір виконавця
         worker_sizer = wx.BoxSizer(wx.HORIZONTAL)
         worker_label = wx.StaticText(panel_top, label="виконавець:")
         worker_sizer.Add(worker_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 3)
         self.worker_combo = wx.ComboBox(panel_top, choices=['Усі', 'ВП', 'МПЗ', 'Інші'], style=wx.CB_READONLY)
-        self.worker_combo.SetSelection(0) # Усі за замовчуванням
-        # self.worker_combo.Bind(wx.EVT_COMBOBOX, self.on_worker_selected) # Додати обробник, якщо потрібно
+        self.worker_combo.SetSelection(0)
         worker_sizer.Add(self.worker_combo, 1, wx.EXPAND | wx.LEFT, 3)
         grid_sizer_top.Add(worker_sizer, 1, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
 
-        grid_sizer_top.AddStretchSpacer() # Порожня комірка в кінці першого рядка
+        grid_sizer_top.AddStretchSpacer()
 
-        # --- Рядок 2 ---
-        # Радіокнопки категорії осіб
+        # --- Рядок 2: Радіокнопки категорій осіб та вибір підрозділу ---
         self.person_officer_radio = wx.RadioButton(panel_top, label="Офіцери", style=wx.RB_GROUP)
         self.person_officer_radio.Bind(wx.EVT_RADIOBUTTON, lambda event: self.on_person_category_change(event, PERSON_CATEGORY_OFFICER))
         grid_sizer_top.Add(self.person_officer_radio, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
@@ -394,13 +386,12 @@ class Tab4Panel(scrolled.ScrolledPanel):
         self.person_all_radio.Bind(wx.EVT_RADIOBUTTON, lambda event: self.on_person_category_change(event, PERSON_CATEGORY_ALL))
         grid_sizer_top.Add(self.person_all_radio, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
 
-        # Вибір підрозділу / Цивільні
         self.unit_civilian_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.unit_label = wx.StaticText(panel_top, label="підрозділ:")
         self.unit_civilian_sizer.Add(self.unit_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 3)
 
         self.unit_combo = wx.ComboBox(panel_top, choices=self._loaded_units, style=wx.CB_READONLY)
-        if self._loaded_units: self.unit_combo.SetSelection(0) # Вибрати перший, якщо є
+        if self._loaded_units: self.unit_combo.SetSelection(0)
         self.unit_civilian_sizer.Add(self.unit_combo, 1, wx.EXPAND | wx.LEFT, 3)
 
         self.civilian_checkbox = wx.CheckBox(panel_top, label="= цивільні")
@@ -408,10 +399,36 @@ class Tab4Panel(scrolled.ScrolledPanel):
         self.unit_civilian_sizer.Add(self.civilian_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 3)
         grid_sizer_top.Add(self.unit_civilian_sizer, 1, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 3)
 
-        grid_sizer_top.AddStretchSpacer() # Порожня комірка в кінці другого рядка
+        grid_sizer_top.AddStretchSpacer()
 
-        top_sizer.Add(grid_sizer_top, 1, wx.EXPAND | wx.ALL, 3)
-        return panel_top
+        # Додаємо сітку фільтрів у першу чергу
+        top_sizer.Add(grid_sizer_top, 0, wx.EXPAND | wx.ALL, 3)
+
+        # --- Рядок 3: Блок завантаження CSV-файлу (компактний) ---
+        file_box_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        # Єдина кнопка вибору файлу
+        self.btn_browse_csv = wx.Button(panel_top, label="Список (CSV):", size=(110, -1))
+        self.btn_browse_csv.Bind(wx.EVT_BUTTON, self.on_select_input_csv)
+
+        # Динамічне текстове поле для шляху до файлу
+        self.file_path_text = wx.TextCtrl(panel_top, style=wx.TE_READONLY)
+        self.file_path_text.SetHint("Виберіть CSV файл зі списком людей...")
+        self.file_path_text.SetMinSize((80, -1)) # Стискається першим при зменшенні вікна
+
+        # Напис з кількістю завантажених осіб
+        self.lbl_csv_info = wx.StaticText(panel_top, label="Файл не вибрано")
+        self.lbl_csv_info.SetMinSize((250, -1)) # Фіксований мінімальний розмір, щоб не ховався текст
+
+        file_box_sizer.Add(self.btn_browse_csv, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        file_box_sizer.Add(self.file_path_text, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        file_box_sizer.Add(self.lbl_csv_info, 0, wx.ALIGN_CENTER_VERTICAL)
+
+        # Додаємо блок нижче радіокнопок
+        top_sizer.Add(file_box_sizer, 0, wx.EXPAND | wx.ALL, 5)
+
+        return panel_top  
+
 
     def create_award_group(self, parent_panel):
         """Створює групу налаштувань для секції 'Нагородження'."""
@@ -530,6 +547,61 @@ class Tab4Panel(scrolled.ScrolledPanel):
         self.specific_submission_search_helper = ComboSearchHelper(self.specific_submission_combo)
         
         return submission_sizer
+
+
+    def on_select_input_csv(self, event):
+        """Обробник вибору CSV-файлу зі списком людей."""
+        with wx.FileDialog(self, "Оберіть CSV файл зі списком", wildcard="CSV files (*.csv)|*.csv",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                filepath = dlg.GetPath()
+                self.file_path_text.SetValue(filepath)
+                
+                # Парсинг файлу
+                try:
+                    self.loaded_input_df = parse_input_person_csv(filepath)
+                    count = len(self.loaded_input_df)
+                    has_inn = (self.loaded_input_df["РНОКПП_norm"] != "").sum() if count > 0 else 0
+                    
+                    self.lbl_csv_info.SetLabel(f"Завантажено осіб: {count} (з РНОКПП: {has_inn})")
+                except Exception as e:
+                    wx.MessageBox(f"Помилка при зчитуванні CSV файлу:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
+                    self.lbl_csv_info.SetLabel("Помилка файлу")
+
+    def on_run_comparison_report(self, event):
+        """Запуск формування порівняльного звіту."""
+        if not hasattr(self, 'loaded_input_df') or self.loaded_input_df is None or self.loaded_input_df.empty:
+            wx.MessageBox("Будь ласка, спочатку виберіть коректний CSV файл зі списком людей!", "Увага", wx.OK | wx.ICON_WARNING)
+            return
+
+        # Збираємо обрані в інтерфейсі фільтри
+        filters = {
+            'mode': 'awarding' if self.mode_toggle_state == 0 else 'submission',
+            'start_date': self.start_date_picker.GetValue().Format("%Y-%m-%d"),
+            'end_date': self.end_date_picker.GetValue().Format("%Y-%m-%d"),
+            'all_time': self.all_time_checkbox.GetValue(),
+            'posthumous': self.posthumous_checkbox.GetValue(),
+            'worker': self.worker_combo.GetValue(),
+            'person_category': self.person_category_filter,
+            'unit': self.unit_combo.GetValue() if self.unit_combo.IsEnabled() else "",
+            'handover_status': self.award_handover_status,
+            'submission_status': self.submission_status_filter,
+            'award_rank': self.ranking_award_combo.GetValue(),
+            'award_id': self.selected_award_id
+        }
+
+        # Відкриваємо вікно порівняльного звіту
+        report_frame = ComparisonReportFrame(
+            parent=self,
+            db_path=self.db_path,
+            key=self.key,
+            filters=filters,
+            zvit_fields=self.zvit_fields,
+            zvit_dir=self.zvit_dir,
+            input_df=self.loaded_input_df,
+            exel_bmp=self._excel_bmp
+        )
+        report_frame.Show()
 
 
     def create_action_buttons(self):
@@ -757,9 +829,6 @@ class Tab4Panel(scrolled.ScrolledPanel):
             # вмикаємо/вимикаємо його (якщо не StaticText/StaticBox)
             if not isinstance(sizer_item_or_sizer_or_window, (wx.StaticText, wx.StaticBox)):
                  sizer_item_or_sizer_or_window.Enable(enable)
-            # Та обходимо його дочірні вікна (якщо є)
-            # for child in sizer_item_or_sizer_or_window.GetChildren():
-            #     self._enable_widgets_in_sizer_recursive(child, enable)
 
 
     def update_unit_civilian_visibility(self):
@@ -1142,22 +1211,72 @@ class Tab4Panel(scrolled.ScrolledPanel):
                 self.award_image.SetBitmap(empty_bitmap)
             self.award_image.GetContainingSizer().Layout()
 
+
     def on_view_report(self, event=None):
-        # Отримуємо фільтри
-        filters = self._get_current_filters()
+        """Головний обробник кнопки 'Перегляд' із виведенням статусу у футер."""
+        # 1. Захист від повторного натискання
+        if not self.view_button.IsEnabled():
+            return
 
-        # Тепер можна використовувати ці фільтри для створення звіту
-        report_window = ReportGeneratorWx(
-            parent=self,
-            db_path=self.db_path,
-            key=self.key,
-            zvit_fields=self.zvit_fields,
-            zvit_dir=self.zvit_dir,
-            filters=filters,  # передаємо фільтри
-            exel_bmp=self._excel_bmp
-        )
-        report_window.Show()
+        # Зберігаємо початкові дані кнопки
+        original_label = self.view_button.GetLabel()
 
+        try:
+            # 2. Змінюємо стан кнопки та виводимо повідомлення у футер
+            self.view_button.Enable(False)
+            if hasattr(self.view_button, 'SetBitmap'):
+                self.view_button.SetBitmap(wx.NullBitmap)
+            self.view_button.SetLabel("Чекайте...")
 
+            # Ваш стандартний трюк з оновленням футера
+            self.update_footer_message("Формування звіту, зачекайте будь ласка...")
+
+            # Оновлюємо UI, щоб зміни у футері та на кнопці з'явилися негайно
+            wx.Yield()
+
+            # 3. Збирання фільтрів та формування звіту
+            filters = self._get_current_filters()
+            input_df = getattr(self, 'loaded_input_df', None)
+
+            # Якщо CSV файл завантажено — відкриваємо порівняльний звіт
+            if input_df is not None and not input_df.empty:
+                report_frame = ComparisonReportFrame(
+                    parent=self,
+                    db_path=self.db_path,
+                    key=self.key,
+                    filters=filters,
+                    zvit_fields=self.zvit_fields,
+                    zvit_dir=self.zvit_dir,
+                    input_df=input_df,
+                    exel_bmp=self._excel_bmp
+                )
+                report_frame.Show()
+            
+            # Якщо CSV немає — звичайний звіт
+            else:
+                report_window = ReportGeneratorWx(
+                    parent=self,
+                    db_path=self.db_path,
+                    key=self.key,
+                    zvit_fields=self.zvit_fields,
+                    zvit_dir=self.zvit_dir,
+                    filters=filters,
+                    exel_bmp=self._excel_bmp
+                )
+                report_window.Show()
+
+        except Exception as e:
+            self.update_footer_message(f"Помилка при формуванні звіту: {e}")
+            wx.MessageBox(f"Помилка при формуванні звіту:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
+
+        finally:
+            # 4. Повертаємо кнопці початковий вигляд та відновлюємо дефолтне повідомлення у футері
+            self.view_button.SetLabel(original_label)
+            if self._view_bmp and hasattr(self.view_button, 'SetBitmap'):
+                self.view_button.SetBitmap(self._view_bmp, wx.LEFT)
+            self.view_button.Enable(True)
+
+            # Повертаємо стандартне повідомлення статусу
+            self.update_footer_message(DEF_FUT_LABEL)
 
 # Кінець класу Tab4Panel

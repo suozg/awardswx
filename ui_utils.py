@@ -3,10 +3,9 @@ import wx
 from wx import MessageBox, OK, ICON_INFORMATION
 import threading
 import wx.grid
-import csv  # Модуль для роботи з CSV
+import csv  
 from database_logic import connect_to_database, RankingValues
-
-#-- для ОБРОБКИ ЗОБРАЖЕНЬ------
+import pandas as pd
 import io
 import os
 from openpyxl import Workbook
@@ -15,6 +14,223 @@ from openpyxl.utils import get_column_letter
 from PIL import Image
 from PIL import ImageEnhance
 from config import ALL_COLUMN_LABELS
+
+
+# клас вікна результатів звіту зі зіставленням
+class ComparisonReportFrame(wx.Frame):
+    def __init__(self, parent, db_path, key, filters, zvit_fields, zvit_dir, input_df, exel_bmp=None):
+        super().__init__(parent, title="Звіт: Порівняння зі списком", size=(950, 650))
+
+        self.db_path = db_path
+        self.key = key
+        self.filters = filters
+        self.zvit_fields = zvit_fields
+        self.zvit_dir = zvit_dir
+        self.input_df = input_df
+        self._exel_bmp = exel_bmp
+
+        self.panel = wx.Panel(self)
+        self.grid = wx.grid.Grid(self.panel)
+        
+        # Кнопки збереження та закриття
+        self.record_count_label = wx.StaticText(self.panel, label="Обробка даних...")
+        
+        if self._exel_bmp:
+            self.excel_button = wx.BitmapButton(self.panel, bitmap=self._exel_bmp, size=(40, 35))
+        else:
+            self.excel_button = wx.Button(self.panel, label="Excel", size=(60, 35))
+        self.excel_button.Bind(wx.EVT_BUTTON, self.on_export_excel)
+
+        self.csv_button = wx.Button(self.panel, label="CSV", size=(60, 35))
+        self.csv_button.Bind(wx.EVT_BUTTON, self.on_export_csv)
+
+        self.close_button = wx.Button(self.panel, label="Закрити", size=(80, 35))
+        self.close_button.Bind(wx.EVT_BUTTON, lambda e: self.Close())
+
+        # Компонування
+        panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        panel_sizer.Add(self.grid, 1, wx.EXPAND | wx.ALL, 5)
+
+        bottom_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        bottom_sizer.Add(self.record_count_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 10)
+        bottom_sizer.AddStretchSpacer(1)
+        bottom_sizer.Add(self.excel_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        bottom_sizer.Add(self.csv_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        bottom_sizer.AddStretchSpacer(1)
+        bottom_sizer.Add(self.close_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+
+        panel_sizer.Add(bottom_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        self.panel.SetSizer(panel_sizer)
+
+        self.result_df = pd.DataFrame()
+        self.process_and_display()
+
+    def process_and_display(self):
+        """Отримує дані з БД, порівнює зі списком та заповнює Grid."""
+        conn, cursor = connect_to_database(self.key, self.db_path)
+        if not cursor:
+            wx.MessageBox("Не вдалося підключитися до бази даних.", "Помилка", wx.OK | wx.ICON_ERROR)
+            return
+
+        try:
+            # Викликаємо функції build_query та fetch_data напряму (вони в цьому ж модулі)
+            query, params, pre_titlestr = build_query(self.filters, self.zvit_fields)
+            raw_db_data = fetch_data(cursor, query, params)
+            
+            self.SetTitle(f"Порівняльний звіт — {pre_titlestr}")
+
+            db_rows = []
+            if raw_db_data:
+                for r in raw_db_data:
+                    pib = str(r[0]).strip() if r[0] else ""
+                    award_or_pres = str(r[9]).strip() if r[9] else (str(r[5]).strip() if len(r) > 5 and r[5] else "")
+                    date_dec = str(r[8]).strip() if len(r) > 8 and r[8] else (str(r[4]).strip() if len(r) > 4 and r[4] else "")
+                    inn = str(int(float(r[15]))).strip() if len(r) > 15 and r[15] and str(r[15]).replace('.', '').isdigit() else ""
+                    
+                    award_text = f"{award_or_pres} ({date_dec})" if date_dec else award_or_pres
+                    
+                    db_rows.append({
+                        "ПІБ_db": pib,
+                        "ПІБ_norm": " ".join(pib.upper().split()),
+                        "РНОКПП_norm": inn,
+                        "Результат_БД": award_text
+                    })
+
+            db_df = pd.DataFrame(db_rows)
+
+            # ГРУПУВАННЯ записів з БД для однієї людини (усі знахідки через ;)
+            if not db_df.empty:
+                db_grouped = (
+                    db_df.groupby("ПІБ_norm")["Результат_БД"]
+                    .apply(lambda x: "; ".join(dict.fromkeys(filter(None, x))))
+                    .reset_index()
+                )
+            else:
+                db_grouped = pd.DataFrame(columns=["ПІБ_norm", "Результат_БД"])
+
+            # LEFT JOIN вхідного списку CSV та даних з БД
+            merged = pd.merge(self.input_df, db_grouped, on="ПІБ_norm", how="left")
+            merged["Результат_БД"] = merged["Результат_БД"].fillna("—")
+
+            display_cols = ["Звання", "ПІБ", "Посада", "РНОКПП", "Результат_БД"]
+            for col in display_cols:
+                if col not in merged.columns:
+                    merged[col] = ""
+
+            self.result_df = merged[display_cols].rename(columns={"Результат_БД": "Знайдені нагороди / подання"})
+
+            # Відображення у таблиці Grid
+            self.grid.CreateGrid(len(self.result_df), len(self.result_df.columns))
+            
+            for col_idx, col_name in enumerate(self.result_df.columns):
+                self.grid.SetColLabelValue(col_idx, col_name)
+
+            for row_idx, row in self.result_df.iterrows():
+                for col_idx, val in enumerate(row):
+                    self.grid.SetCellValue(row_idx, col_idx, str(val))
+
+            self.grid.AutoSizeColumns()
+            self.record_count_label.SetLabel(f"Всього у списку: {len(self.result_df)}")
+
+        except Exception as e:
+            wx.MessageBox(f"Помилка при формуванні звіту:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+
+    def on_export_excel(self, event):
+        if self.result_df.empty:
+            return
+        
+        with wx.FileDialog(self, "Зберегти звіт Excel", wildcard="Excel files (*.xlsx)|*.xlsx",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                           defaultDir=self.zvit_dir or "", defaultFile="звіт_порівняння.xlsx") as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                path = dlg.GetPath()
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "Звіт"
+                
+                ws.append(list(self.result_df.columns))
+                for cell in ws[1]:
+                    cell.font = Font(bold=True)
+                
+                for row in self.result_df.itertuples(index=False):
+                    ws.append(list(row))
+                    
+                wb.save(path)
+                wx.MessageBox(f"Успішно збережено в {path}", "Успіх", wx.OK | wx.ICON_INFORMATION)
+
+    def on_export_csv(self, event):
+        if self.result_df.empty:
+            return
+            
+        with wx.FileDialog(self, "Зберегти звіт CSV", wildcard="CSV files (*.csv)|*.csv",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                           defaultDir=self.zvit_dir or "", defaultFile="звіт_порівняння.csv") as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                path = dlg.GetPath()
+                self.result_df.to_csv(path, sep=";", index=False, encoding="utf-8-sig")
+                wx.MessageBox(f"Успішно збережено в {path}", "Успіх", wx.OK | wx.ICON_INFORMATION)
+
+def parse_input_person_csv(filepath):
+    """
+    Завантажує та нормалізує CSV файл зі списком людей (1 людина - 1 рядок).
+    Повертає DataFrame з колонками: ['Звання', 'ПІБ', 'Посада', 'РНОКПП', 'ПІБ_norm', 'РНОКПП_norm']
+    """
+    spis_rows = []
+    # Спроба прочитати csv за допомогою стандартного csv.reader (стійкий до різних кодувань)
+    with open(filepath, "r", encoding="utf-8-sig", errors="ignore") as f:
+        # Автовизначення роздільника
+        sample = f.read(2048)
+        f.seek(0)
+        delimiter = ';' if ';' in sample else ','
+        reader = csv.reader(f, delimiter=delimiter)
+        
+        for row in reader:
+            if not row or len(row) < 1:
+                continue
+            
+            # Шукаємо ПІБ та РНОКПП у колонках
+            pib = ""
+            inn = ""
+            zvannya = ""
+            posada = ""
+            
+            # Якщо файл має структуру: Звання, ПІБ, Посада, РНОКПП
+            for cell in row:
+                cell_clean = cell.strip()
+                if not cell_clean:
+                    continue
+                # Якщо комірка з 10 цифр — це РНОКПП
+                if len(cell_clean) == 10 and cell_clean.isdigit():
+                    inn = cell_clean
+                # Якщо декілька слів — вважаємо це ПІБ
+                elif len(cell_clean.split()) >= 2 and not pib:
+                    pib = cell_clean
+                elif not zvannya:
+                    zvannya = cell_clean
+                else:
+                    posada = cell_clean
+
+            if pib:
+                spis_rows.append({
+                    "Звання": zvannya,
+                    "ПІБ": pib,
+                    "Посада": posada,
+                    "РНОКПП": inn
+                })
+
+    df = pd.DataFrame(spis_rows)
+    if df.empty:
+        return df
+
+    # Нормалізація для порівняння
+    df["ПІБ_norm"] = df["ПІБ"].apply(lambda x: " ".join(str(x).strip().upper().split()) if pd.notna(x) else "")
+    df["РНОКПП_norm"] = df["РНОКПП"].apply(lambda x: str(int(float(x))).strip() if pd.notna(x) and str(x).strip().isdigit() else "")
+    
+    return df
+
 
 # Пошук і відображення списку нагород з автопідстановкою
 class ComboSearchHelper:
