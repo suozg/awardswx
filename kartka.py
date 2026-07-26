@@ -735,9 +735,8 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
         if person_related_data_dict:
             # Отримуємо списки нагород та подань з цього словника.
-            # Використовуємо .get() з порожнім списком [] за замовчуванням, якщо ключ відсутній.
-            self.meed_list = person_related_data_dict.get('meed', [])
             self.presentations_list = person_related_data_dict.get('presentations', [])
+            self.meed_list = person_related_data_dict.get('meed', [])
 
             # ---- формуємо комбосписок СПИСОК ПОДАНЬ НА ОСОБУ ------------            
             self.pres_ctrl.Clear()  # Clear existing items in the ComboBox
@@ -813,7 +812,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
 
     def search_index_from_list(self, s_list=None, s_position_in_list=None, s_query=None):
         # метод поиска индекса элемента по значению
-        _list = s_list 
+        _list = s_list if s_list is not None else []  # Захист від None 
         _position_in_list = s_position_in_list
         _query = s_query
 
@@ -880,7 +879,8 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 id_meed,  
                 worker,
                 report,
-                text_presentation
+                text_presentation,
+                _
             ) = self.presentations_list[list_index]
 
             self.current_presentation_id = pres_id # id 
@@ -924,7 +924,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
                     self.pres_denied_checkbox.Hide()
                     self.pres_unlink_meed_checkbox.Show()
                     # Вичисляємо 0-базовий індекс списку нагородження для автозагрузки
-                    meed_list_index = self.search_index_from_list(self.meed_list, 15, id_meed)
+                    meed_list_index = self.search_index_from_list(self.meed_list, 13, id_meed)
                     if meed_list_index != -1: # Якщо знайдено пов'язане нагородження (0-базовий індекс)
                         self.fill_meed_fields(_list_index=meed_list_index)
 
@@ -963,28 +963,27 @@ class KartkaPanel(scrolled.ScrolledPanel):
         try: 
             item = self.meed_list[list_index]
             raw = item["raw_data"]  # Це кортеж значень
-            #handover_info = item.get("handover_info", "")
+            handover_info = item.get("handover_info", "")
             (
-                id_personality,     # id_personality
-                award_id,           # id_award
-                award_date,         # date_decree
-                decree,             # decree
-                number_meed,        # number_meed
-                handover_date,      # date_handover
-                handover_person,    # handover
-                consignment_note,   # consignment_note
-                name,               # name
-                rank,               # rank
-                inn,                # inn
-                unit,               # unit
-                pres_number,        # pres_number 
-                pres_date,          # date_registration 
-                award_name,         # denotation 
-                meed_id,            # id (meed_id)
-                dead                # dead
+                id_personality,
+                award_id,
+                award_date,
+                decree,
+                number_meed,
+                handover_date,
+                handover_person,
+                consignment_note,
+                name,
+                rank,
+                inn,
+                unit,
+                award_name,
+                meed_id,
+                dead,
+                hto_name,
             ) = raw
             self.current_meed_id = meed_id # id meed
-
+            
             # Заповнення полів
             if self.award_ctrl: self.award_ctrl.SetStringSelection(award_name)
 
@@ -1047,7 +1046,6 @@ class KartkaPanel(scrolled.ScrolledPanel):
                 self.pres_ctrl.SetSelection(0)
 
             wx.CallAfter(self.on_award_selected, None) # изображение награди
-
         finally:
             pass 
 
@@ -1064,7 +1062,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         try:
             self.cursor.execute("SELECT registration, date_registration, worker, report FROM presentation ORDER BY rowid DESC LIMIT 1")
             clip_pres = self.cursor.fetchone()
-
+            
             if clip_pres:
                 submission_registration = clip_pres[0]
                 submission_date = clip_pres[1]
