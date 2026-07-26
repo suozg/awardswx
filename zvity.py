@@ -582,19 +582,22 @@ class Tab4Panel(scrolled.ScrolledPanel):
                 try:
                     self.loaded_input_df = parse_input_person_csv(filepath)
                     count = len(self.loaded_input_df)
-                    has_inn = (self.loaded_input_df["РНОКПП_norm"] != "").sum() if count > 0 else 0
-                    
+                    has_inn = sum(1 for item in self.loaded_input_df if item.get("РНОКПП_norm"))                   
+
                     self.lbl_csv_info.SetLabel(f"(ПІБ:{count}/РНОКПП:{has_inn})")
                 except Exception as e:
                     wx.MessageBox(f"Помилка при зчитуванні CSV файлу:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
                     self.lbl_csv_info.SetLabel("Помилка файлу")
 
     def on_run_comparison_report(self, event):
-        """Запуск формування порівняльного звіту."""
-        if not hasattr(self, 'loaded_input_df') or self.loaded_input_df is None or self.loaded_input_df.empty:
-            wx.MessageBox("Будь ласка, спочатку виберіть коректний CSV файл зі списком людей!", "Увага", wx.OK | wx.ICON_WARNING)
+        # Перевіряємо, чи існує атрибут і чи не порожній список
+        if not hasattr(self, 'loaded_input_df') or not self.loaded_input_df:
+            wx.MessageBox(
+                "Будь ласка, спочатку виберіть коректний CSV файл зі списком людей!", 
+                "Увага", 
+                wx.OK | wx.ICON_WARNING
+            )
             return
-
         # Збираємо обрані в інтерфейсі фільтри
         filters = {
             'mode': 'awarding' if self.mode_toggle_state == 0 else 'submission',
@@ -619,11 +622,10 @@ class Tab4Panel(scrolled.ScrolledPanel):
             filters=filters,
             zvit_fields=self.zvit_fields,
             zvit_dir=self.zvit_dir,
-            input_df=self.loaded_input_df,
+            input_data=self.loaded_input_df,  
             exel_bmp=self._excel_bmp
         )
         report_frame.Show()
-
 
     def create_action_buttons(self):
         """Створює праву панель з кнопками дій (Перегляд, Excel, тощо)."""
@@ -1260,7 +1262,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
             input_df = getattr(self, 'loaded_input_df', None)
 
             # Якщо CSV файл завантажено — відкриваємо порівняльний звіт
-            if input_df is not None and not input_df.empty:
+            if input_df is not None and len(input_df) > 0: 
                 report_frame = ComparisonReportFrame(
                     parent=self,
                     db_path=self.db_path,
@@ -1268,7 +1270,7 @@ class Tab4Panel(scrolled.ScrolledPanel):
                     filters=filters,
                     zvit_fields=self.zvit_fields,
                     zvit_dir=self.zvit_dir,
-                    input_df=input_df,
+                    input_data=input_df,
                     exel_bmp=self._excel_bmp
                 )
                 report_frame.Show()

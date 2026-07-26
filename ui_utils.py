@@ -5,7 +5,6 @@ import threading
 import wx.grid
 import csv  
 from database_logic import connect_to_database, RankingValues
-import pandas as pd
 import io
 import os
 from openpyxl import Workbook
@@ -18,19 +17,23 @@ from config import ALL_COLUMN_LABELS
 
 # клас вікна результатів звіту зі зіставленням
 class ComparisonReportFrame(wx.Frame):
-    def __init__(self, parent, db_path, key, filters, zvit_fields, zvit_dir, input_df, exel_bmp=None):
-        super().__init__(parent, title="Звіт: Порівняння зі списком", size=(950, 650))
+    def __init__(self, parent, db_path, key, filters, zvit_fields, zvit_dir, input_data, exel_bmp=None):
+        super().__init__(parent, title="Звіт: Порівняння зі списком", size=(950, 680))
 
         self.db_path = db_path
         self.key = key
         self.filters = filters
         self.zvit_fields = zvit_fields
         self.zvit_dir = zvit_dir
-        self.input_df = input_df
+        self.input_data = input_data  # Список словників
         self._exel_bmp = exel_bmp
 
         self.panel = wx.Panel(self)
         self.grid = wx.grid.Grid(self.panel)
+        
+        # Индикатор прогресса
+        self.progress_gauge = wx.Gauge(self.panel, range=100, style=wx.GA_HORIZONTAL)
+        self.progress_gauge.SetValue(0)
         
         # Кнопки збереження та закриття
         self.record_count_label = wx.StaticText(self.panel, label="Обробка даних...")
@@ -50,6 +53,7 @@ class ComparisonReportFrame(wx.Frame):
         # Компонування
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         panel_sizer.Add(self.grid, 1, wx.EXPAND | wx.ALL, 5)
+        panel_sizer.Add(self.progress_gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         bottom_sizer = wx.BoxSizer(wx.HORIZONTAL)
         bottom_sizer.Add(self.record_count_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 10)
@@ -62,22 +66,31 @@ class ComparisonReportFrame(wx.Frame):
         panel_sizer.Add(bottom_sizer, 0, wx.EXPAND | wx.ALL, 5)
         self.panel.SetSizer(panel_sizer)
 
-        self.result_df = pd.DataFrame()
-        self.process_and_display()
+        self.result_data = []
+        self.columns_names = ["Звання", "ПІБ", "Посада", "РНОКПП", "Знайдені нагороди / подання"]
+        
+        # Запуск обробки у фоновому потоці
+        thread = threading.Thread(target=self.process_in_thread, daemon=True)
+        thread.start()
 
-    def process_and_display(self):
-        """Отримує дані з БД, порівнює зі списком та заповнює Grid."""
-        conn, cursor = connect_to_database(self.key, self.db_path)
-        if not cursor:
-            wx.MessageBox("Не вдалося підключитися до бази даних.", "Помилка", wx.OK | wx.ICON_ERROR)
-            return
-
+    def process_in_thread(self):
+        """Отримує дані з БД, порівнює зі списком у фоновому потоці та оновлює GUI."""
+        conn = None
+        cursor = None
         try:
-            # Викликаємо функції build_query та fetch_data напряму (вони в цьому ж модулі)
+            wx.CallAfter(self.progress_gauge.SetValue, 10)
+            conn, cursor = connect_to_database(self.key, self.db_path)
+            if not cursor:
+                wx.CallAfter(wx.MessageBox, "Не вдалося підключитися до бази даних.", "Помилка", wx.OK | wx.ICON_ERROR)
+                wx.CallAfter(self.progress_gauge.SetValue, 0)
+                return
+
+            wx.CallAfter(self.progress_gauge.SetValue, 20)
             query, params, pre_titlestr = build_query(self.filters, self.zvit_fields)
             raw_db_data = fetch_data(cursor, query, params)
             
-            self.SetTitle(f"Порівняльний звіт — {pre_titlestr}")
+            wx.CallAfter(self.SetTitle, f"Порівняльний звіт — {pre_titlestr}")
+            wx.CallAfter(self.progress_gauge.SetValue, 40)
 
             db_rows = []
             if raw_db_data:
@@ -85,61 +98,81 @@ class ComparisonReportFrame(wx.Frame):
                     pib = str(r[0]).strip() if r[0] else ""
                     award_or_pres = str(r[9]).strip() if r[9] else (str(r[5]).strip() if len(r) > 5 and r[5] else "")
                     date_dec = str(r[8]).strip() if len(r) > 8 and r[8] else (str(r[4]).strip() if len(r) > 4 and r[4] else "")
-                    inn = str(int(float(r[15]))).strip() if len(r) > 15 and r[15] and str(r[15]).replace('.', '').isdigit() else ""
                     
                     award_text = f"{award_or_pres} ({date_dec})" if date_dec else award_or_pres
+                    pib_norm = " ".join(pib.upper().split())
                     
-                    db_rows.append({
-                        "ПІБ_db": pib,
-                        "ПІБ_norm": " ".join(pib.upper().split()),
-                        "РНОКПП_norm": inn,
-                        "Результат_БД": award_text
-                    })
+                    if pib_norm:
+                        db_rows.append({
+                            "ПІБ_norm": pib_norm,
+                            "Результат_БД": award_text
+                        })
 
-            db_df = pd.DataFrame(db_rows)
+            wx.CallAfter(self.progress_gauge.SetValue, 60)
 
-            # ГРУПУВАННЯ записів з БД для однієї людини (усі знахідки через ;)
-            if not db_df.empty:
-                db_grouped = (
-                    db_df.groupby("ПІБ_norm")["Результат_БД"]
-                    .apply(lambda x: "; ".join(dict.fromkeys(filter(None, x))))
-                    .reset_index()
-                )
-            else:
-                db_grouped = pd.DataFrame(columns=["ПІБ_norm", "Результат_БД"])
+            # ГРУПУВАННЯ записів з БД
+            db_grouped = {}
+            for item in db_rows:
+                norm = item["ПІБ_norm"]
+                res = item["Результат_БД"]
+                if norm not in db_grouped:
+                    db_grouped[norm] = []
+                if res and res not in db_grouped[norm]:
+                    db_grouped[norm].append(res)
+
+            db_grouped_final = {
+                k: "; ".join(v) for k, v in db_grouped.items() if v
+            }
+
+            wx.CallAfter(self.progress_gauge.SetValue, 80)
 
             # LEFT JOIN вхідного списку CSV та даних з БД
-            merged = pd.merge(self.input_df, db_grouped, on="ПІБ_norm", how="left")
-            merged["Результат_БД"] = merged["Результат_БД"].fillna("—")
+            self.result_data = []
+            for row in self.input_data:
+                pib_norm = row.get("ПІБ_norm", "")
+                found_awards = db_grouped_final.get(pib_norm, "—")
+                
+                self.result_data.append({
+                    "Звання": row.get("Звання", ""),
+                    "ПІБ": row.get("ПІБ", ""),
+                    "Посада": row.get("Посада", ""),
+                    "РНОКПП": row.get("РНОКПП", ""),
+                    "Знайдені нагороди / подання": found_awards
+                })
 
-            display_cols = ["Звання", "ПІБ", "Посада", "РНОКПП", "Результат_БД"]
-            for col in display_cols:
-                if col not in merged.columns:
-                    merged[col] = ""
-
-            self.result_df = merged[display_cols].rename(columns={"Результат_БД": "Знайдені нагороди / подання"})
-
-            # Відображення у таблиці Grid
-            self.grid.CreateGrid(len(self.result_df), len(self.result_df.columns))
+            wx.CallAfter(self.progress_gauge.SetValue, 90)
             
-            for col_idx, col_name in enumerate(self.result_df.columns):
-                self.grid.SetColLabelValue(col_idx, col_name)
-
-            for row_idx, row in self.result_df.iterrows():
-                for col_idx, val in enumerate(row):
-                    self.grid.SetCellValue(row_idx, col_idx, str(val))
-
-            self.grid.AutoSizeColumns()
-            self.record_count_label.SetLabel(f"Всього у списку: {len(self.result_df)}")
+            # Передача готових даних у головний потік для відображення в UI
+            wx.CallAfter(self.update_gui_after_processing)
 
         except Exception as e:
-            wx.MessageBox(f"Помилка при формуванні звіту:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
+            wx.CallAfter(wx.MessageBox, f"Помилка при формуванні звіту:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
         finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
+            if cursor: 
+                try: cursor.close()
+                except Exception: pass
+            if conn: 
+                try: conn.close()
+                except Exception: pass
+
+    def update_gui_after_processing(self):
+        """Оновлює елементи таблиці та UI у головному потоці."""
+        self.grid.CreateGrid(len(self.result_data), len(self.columns_names))
+        
+        for col_idx, col_name in enumerate(self.columns_names):
+            self.grid.SetColLabelValue(col_idx, col_name)
+
+        for row_idx, row in enumerate(self.result_data):
+            for col_idx, col_name in enumerate(self.columns_names):
+                val = row.get(col_name, "")
+                self.grid.SetCellValue(row_idx, col_idx, str(val))
+
+        self.grid.AutoSizeColumns()
+        self.record_count_label.SetLabel(f"Всього у списку: {len(self.result_data)}")
+        self.progress_gauge.SetValue(100)
 
     def on_export_excel(self, event):
-        if self.result_df.empty:
+        if not self.result_data:
             return
         
         with wx.FileDialog(self, "Зберегти звіт Excel", wildcard="Excel files (*.xlsx)|*.xlsx",
@@ -151,18 +184,19 @@ class ComparisonReportFrame(wx.Frame):
                 ws = wb.active
                 ws.title = "Звіт"
                 
-                ws.append(list(self.result_df.columns))
+                ws.append(self.columns_names)
                 for cell in ws[1]:
                     cell.font = Font(bold=True)
                 
-                for row in self.result_df.itertuples(index=False):
-                    ws.append(list(row))
+                for row_dict in self.result_data:
+                    row_vals = [row_dict.get(col, "") for col in self.columns_names]
+                    ws.append(row_vals)
                     
                 wb.save(path)
                 wx.MessageBox(f"Успішно збережено в {path}", "Успіх", wx.OK | wx.ICON_INFORMATION)
 
     def on_export_csv(self, event):
-        if self.result_df.empty:
+        if not self.result_data:
             return
             
         with wx.FileDialog(self, "Зберегти звіт CSV", wildcard="CSV files (*.csv)|*.csv",
@@ -170,18 +204,22 @@ class ComparisonReportFrame(wx.Frame):
                            defaultDir=self.zvit_dir or "", defaultFile="звіт_порівняння.csv") as dlg:
             if dlg.ShowModal() == wx.ID_OK:
                 path = dlg.GetPath()
-                self.result_df.to_csv(path, sep=";", index=False, encoding="utf-8-sig")
+                with open(path, mode='w', newline='', encoding='utf-8-sig') as csv_file:
+                    writer = csv.writer(csv_file, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+                    writer.writerow(self.columns_names)
+                    for row_dict in self.result_data:
+                        writer.writerow([row_dict.get(col, "") for col in self.columns_names])
+
                 wx.MessageBox(f"Успішно збережено в {path}", "Успіх", wx.OK | wx.ICON_INFORMATION)
+
 
 def parse_input_person_csv(filepath):
     """
     Завантажує та нормалізує CSV файл зі списком людей (1 людина - 1 рядок).
-    Повертає DataFrame з колонками: ['Звання', 'ПІБ', 'Посада', 'РНОКПП', 'ПІБ_norm', 'РНОКПП_norm']
+    Повертає список словників з ключами: ['Звання', 'ПІБ', 'Посада', 'РНОКПП', 'ПІБ_norm', 'РНОКПП_norm']
     """
     spis_rows = []
-    # Спроба прочитати csv за допомогою стандартного csv.reader (стійкий до різних кодувань)
     with open(filepath, "r", encoding="utf-8-sig", errors="ignore") as f:
-        # Автовизначення роздільника
         sample = f.read(2048)
         f.seek(0)
         delimiter = ';' if ';' in sample else ','
@@ -191,21 +229,17 @@ def parse_input_person_csv(filepath):
             if not row or len(row) < 1:
                 continue
             
-            # Шукаємо ПІБ та РНОКПП у колонках
             pib = ""
             inn = ""
             zvannya = ""
             posada = ""
             
-            # Якщо файл має структуру: Звання, ПІБ, Посада, РНОКПП
             for cell in row:
                 cell_clean = cell.strip()
                 if not cell_clean:
                     continue
-                # Якщо комірка з 10 цифр — це РНОКПП
                 if len(cell_clean) == 10 and cell_clean.isdigit():
                     inn = cell_clean
-                # Якщо декілька слів — вважаємо це ПІБ
                 elif len(cell_clean.split()) >= 2 and not pib:
                     pib = cell_clean
                 elif not zvannya:
@@ -214,22 +248,19 @@ def parse_input_person_csv(filepath):
                     posada = cell_clean
 
             if pib:
+                pib_norm = " ".join(pib.strip().upper().split())
+                inn_norm = inn.strip() if inn.strip().isdigit() else ""
+                
                 spis_rows.append({
                     "Звання": zvannya,
                     "ПІБ": pib,
                     "Посада": posada,
-                    "РНОКПП": inn
+                    "РНОКПП": inn,
+                    "ПІБ_norm": pib_norm,
+                    "РНОКПП_norm": inn_norm
                 })
 
-    df = pd.DataFrame(spis_rows)
-    if df.empty:
-        return df
-
-    # Нормалізація для порівняння
-    df["ПІБ_norm"] = df["ПІБ"].apply(lambda x: " ".join(str(x).strip().upper().split()) if pd.notna(x) else "")
-    df["РНОКПП_norm"] = df["РНОКПП"].apply(lambda x: str(int(float(x))).strip() if pd.notna(x) and str(x).strip().isdigit() else "")
-    
-    return df
+    return spis_rows
 
 
 # Пошук і відображення списку нагород з автопідстановкою
@@ -263,7 +294,6 @@ class ComboSearchHelper:
         if self.search_timer and self.search_timer.IsRunning():
             self.search_timer.Stop()
         self._is_user_typing = False
-        selected_value = self.combo_ctrl.GetValue()
         event.Skip()
 
     def _perform_search_and_update(self):
@@ -314,11 +344,11 @@ class ComboSearchHelper:
 # ----------------- ЛОГІКА ЗАПИТІВ ДЛЯ ЗВІТІВ
 
 MIN_ROW_HEIGHT = 25
-MAX_WIDTH = 300 # Максимальна ширина розширених стовпчиків
+MAX_WIDTH = 300 
 
 class ReportGeneratorWx(wx.Frame):
     def __init__(self, parent, db_path, key, zvit_fields, zvit_dir, filters, exel_bmp=None):
-        super().__init__(parent, title="Звіт", size=(800, 640))
+        super().__init__(parent, title="Звіт", size=(800, 680))
 
         self.ALL_COLUMN_LABELS = ALL_COLUMN_LABELS
 
@@ -384,6 +414,10 @@ class ReportGeneratorWx(wx.Frame):
         self.grid.Bind(wx.grid.EVT_GRID_CELL_RIGHT_CLICK, self.on_grid_right_click)
         self.grid.Bind(wx.grid.EVT_GRID_CELL_LEFT_DCLICK, self.on_grid_cell_dclick)
 
+        # Индикатор прогресса
+        self.progress_gauge = wx.Gauge(self.panel, range=100, style=wx.GA_HORIZONTAL)
+        self.progress_gauge.SetValue(0)
+
         self.record_count_label = wx.StaticText(self.panel)
 
         self.excel_button = wx.BitmapButton(self.panel, bitmap=self._exel_bmp, size=(40, 35))
@@ -405,6 +439,8 @@ class ReportGeneratorWx(wx.Frame):
 
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         panel_sizer.Add(self.grid, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+        panel_sizer.Add(self.progress_gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+
         bottom_sizer = wx.BoxSizer(wx.HORIZONTAL)
         bottom_sizer.Add(self.record_count_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
         bottom_sizer.AddStretchSpacer(1)
@@ -653,35 +689,40 @@ class ReportGeneratorWx(wx.Frame):
         self.panel.Layout()
 
     def _load_data(self):
-        thread = threading.Thread(target=self._load_data_background)
+        thread = threading.Thread(target=self._load_data_background, daemon=True)
         thread.start()
         self.record_count_label.SetLabel("Чекайте, йде обробка запиту...")
         wx.CallAfter(self.record_count_label.SetLabel, "Чекайте, йде обробка запиту...")
-        wx.Yield()
 
     def _load_data_background(self):
         conn = None
         cursor = None
         try:
+            wx.CallAfter(self.progress_gauge.SetValue, 10)
             conn, cursor = connect_to_database(self.key, self.db_path)
             if conn is None or cursor is None:
                 wx.CallAfter(self._show_message, "Не вдалося підключитися до бази даних.")
                 wx.CallAfter(self.record_count_label.SetLabel, "Помилка підключення до БД")
+                wx.CallAfter(self.progress_gauge.SetValue, 0)
                 wx.CallAfter(self._update_grid_with_data)
                 return
 
+            wx.CallAfter(self.progress_gauge.SetValue, 40)
             query, params, pre_titlestr = build_query(self.filters, self.zvit_fields)
             self.pre_titlestr = pre_titlestr
 
             if not query:
                  wx.CallAfter(self._show_message, "Не вдалося сформувати запит до бази даних.")
                  wx.CallAfter(self.record_count_label.SetLabel, "Помилка формування запиту")
+                 wx.CallAfter(self.progress_gauge.SetValue, 0)
                  wx.CallAfter(self._update_grid_with_data)
                  return
 
+            wx.CallAfter(self.progress_gauge.SetValue, 70)
             data = fetch_data(cursor, query, params)
             self.data = data
 
+            wx.CallAfter(self.progress_gauge.SetValue, 100)
             wx.CallAfter(self._update_grid_with_data)
 
             if not data:
@@ -691,6 +732,7 @@ class ReportGeneratorWx(wx.Frame):
             error_message = f"Помилка під час виконання запиту або обробки даних: {e}"
             wx.CallAfter(self._show_message, error_message)
             wx.CallAfter(self.record_count_label.SetLabel, "Помилка під час обробки даних")
+            wx.CallAfter(self.progress_gauge.SetValue, 0)
             wx.CallAfter(self._update_grid_with_data)
 
         finally:
@@ -821,8 +863,6 @@ class ReportGeneratorWx(wx.Frame):
                 error_msg = f"Помилка при збереженні CSV файлу: {e}"
                 wx.CallAfter(wx.MessageBox, error_msg, "Помилка", wx.OK | wx.ICON_ERROR)
 
-# --------------- конец класса ReportGeneratorWx ------------
-
 
 def build_query(filters, zvit_fields):
     params = {}
@@ -831,7 +871,6 @@ def build_query(filters, zvit_fields):
     mode = filters.get('mode')
     specific_submission = filters.get('specific_submission') if mode == 'submission' else False
 
-    # 1. СПЕЦІАЛЬНИЙ РЕЖИМ: Вибір конкретного подання
     if specific_submission:
         params = {}
         submission_number_full = filters.get('submission_number', '')
@@ -860,7 +899,6 @@ def build_query(filters, zvit_fields):
             """
         return query, params, pre_titlestr
 
-    # Спільні параметри дати
     start_date = filters.get("start_date")
     end_date = filters.get("end_date")
     params.update({"date_0": start_date, "date_1": end_date})
@@ -875,14 +913,12 @@ def build_query(filters, zvit_fields):
                    ELSE 6 \
                  END, p.name"
 
-    # Фільтрація підрозділу
     unit_sel = filters.get("unit", "")
     unit_condition = ""
     if unit_sel:
         unit_condition = "AND p.unit = :unit"
         params["unit"] = unit_sel
 
-    # Фільтрація звання/категорії
     id_rank_condition = ""
     rank_sel = ""
     RankRegularStr = []
@@ -923,7 +959,6 @@ def build_query(filters, zvit_fields):
 
     params.update(rank_params)
 
-    # 2. РЕЖИМ: НАГОРОДЖЕННЯ (AWARDING)
     if mode == "awarding":
         handover_status = filters.get('handover_status')
         awarding_where_conditions = []
@@ -933,7 +968,6 @@ def build_query(filters, zvit_fields):
         if filters.get('posthumous'): 
             awarding_dead_status_condition = "m.dead = '1'" 
 
-        # Ігноруємо фільтр виконавця для підзапиту подання в режимі нагородження
         presentation_subquery_where = "" 
 
         if not filters.get("all_time") and handover_status != 1:
@@ -967,7 +1001,6 @@ def build_query(filters, zvit_fields):
         if id_rank_condition:
             awarding_where_conditions.append(id_rank_condition)
 
-        # Ранг нагороди та протоколи
         id_rank_award_condition = ""
         is_issue_protocols_filter = filters.get("issue_protocols", False)
         target_ranks_for_protocol_indices = []
@@ -1039,7 +1072,6 @@ def build_query(filters, zvit_fields):
             {id_order_name_alph}
             """
 
-    # 3. РЕЖИМ: ПОДАННЯ (SUBMISSION)
     elif mode == 'submission':
         id_worker_condition = ""
         id_worker_map = {"Усі": "_", "ВП": "0", "МПЗ": "1", "Інші": "2"}
@@ -1151,9 +1183,6 @@ def fetch_data(cursor, query, params=None):
     except Exception:
         return None
 
-# ---------------------------------------------------
-# ----------------- ОБРОБКА ЗОБРАЖЕНЬ----------------
-# ---------------------------------------------------
 
 def load_image_from_blob(image_blob, max_dim=80, grayscale=False, brightness_factor=1.0):
     if image_blob is None:
@@ -1221,7 +1250,6 @@ def load_image_from_blob(image_blob, max_dim=80, grayscale=False, brightness_fac
         dc.SelectObject(wx.NullBitmap)
         return error_bitmap
 
-# --------------- ОБРОБКА ТЕКСТУ
 
 def on_highlight(richtext_ctrl, word_to_find, text_to_highlight, highlight_color):
     start_index = 0

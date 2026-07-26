@@ -161,20 +161,18 @@ def get_award_and_presentation_info(person_ids, cursor):
 
     placeholders = ','.join('?' for _ in person_ids)
 
-    # 1. Один пакетний запит для ВСІХ нагород з JOIN
+    # 1. Один пакетний запит для ВСІХ нагород з JOIN 
     awards_query = f"""
         SELECT 
             m.id_personality, m.id_award, m.date_decree, m.decree, m.number_meed,
             m.date_handover, m.handover, m.consignment_note,
             p.name, p.rank, p.inn, p.unit,
-            pr.registration, pr.date_registration,
             a.denotation,
             m.id, m.dead,
             hto_p.name AS hto_name
         FROM meed m
         LEFT JOIN personality p ON p.id = m.id_personality
         LEFT JOIN award a ON a.id = m.id_award
-        LEFT JOIN presentation pr ON pr.id_personality = m.id_personality
         LEFT JOIN personality hto_p ON hto_p.id = RTRIM(m.handover, '$')
         WHERE m.id_personality IN ({placeholders})
     """
@@ -217,12 +215,12 @@ def get_award_and_presentation_info(person_ids, cursor):
             counts_gid01 += 1            
 
         for row in awards:
-            display_inn = _get_formatted_inn_display(row[10]) 
+            display_inn = _get_formatted_inn_display(row[10]) # inn залишився під індексом 10
 
-            deadTxt = " (посмертно)" if str(row[16]) == "1" else ""
+            deadTxt = " (посмертно)" if str(row[14]) == "1" else "" # m.dead перемістився з row[16] на row[14]
             if person_output == "": 
                 person_output += f'\n* {row[8]} {row[9]} ({display_inn}, {row[11]}) * \n\n нагороди ({len(awards)})'
-            person_output += f'\n {row[14]}\n - указ/наказ : №{row[3]} від {row[2]} {deadTxt};\n'
+            person_output += f'\n {row[12]}\n - указ/наказ : №{row[3]} від {row[2]} {deadTxt};\n' # a.denotation перемістився з row[14] на row[12]
 
             imgList.append(row[1])
 
@@ -234,7 +232,7 @@ def get_award_and_presentation_info(person_ids, cursor):
                 
                 if htoid:
                     protokol = ", є протокол вручення" if htoid.endswith("$") else ""
-                    hto_name = row[17] if row[17] else htoid.rstrip("$")
+                    hto_name = row[15] if row[15] else htoid.rstrip("$") # hto_name перемістився з row[17] на row[15]
                     string_handover_value += f' вручено: {row[5]}, {hto_name}{protokol}.\n'
                 else:
                     string_handover_value += ' не вручено.\n'
