@@ -98,6 +98,7 @@ class ComparisonReportFrame(wx.Frame):
                     pib = str(r[0]).strip() if r[0] else ""
                     award_or_pres = str(r[9]).strip() if r[9] else (str(r[5]).strip() if len(r) > 5 and r[5] else "")
                     date_dec = str(r[8]).strip() if len(r) > 8 and r[8] else (str(r[4]).strip() if len(r) > 4 and r[4] else "")
+                    inn_db = str(r[15]).strip() if len(r) > 15 and r[15] else "" # РНОКПП з бази даних (індекс 15)
                     
                     award_text = f"{award_or_pres} ({date_dec})" if date_dec else award_or_pres
                     pib_norm = " ".join(pib.upper().split())
@@ -105,23 +106,31 @@ class ComparisonReportFrame(wx.Frame):
                     if pib_norm:
                         db_rows.append({
                             "ПІБ_norm": pib_norm,
-                            "Результат_БД": award_text
+                            "Результат_БД": award_text,
+                            "РНОКПП_БД": inn_db
                         })
 
             wx.CallAfter(self.progress_gauge.SetValue, 60)
 
-            # ГРУПУВАННЯ записів з БД
-            db_grouped = {}
+            # ГРУПУВАННЯ записів з БД (зберігаємо і нагороди, і РНОКПП з БД)
+            db_grouped_awards = {}
+            db_grouped_inn = {}
+            
             for item in db_rows:
                 norm = item["ПІБ_norm"]
                 res = item["Результат_БД"]
-                if norm not in db_grouped:
-                    db_grouped[norm] = []
-                if res and res not in db_grouped[norm]:
-                    db_grouped[norm].append(res)
+                inn_db = item["РНОКПП_БД"]
+                
+                if norm not in db_grouped_awards:
+                    db_grouped_awards[norm] = []
+                if res and res not in db_grouped_awards[norm]:
+                    db_grouped_awards[norm].append(res)
+                
+                if inn_db and norm not in db_grouped_inn:
+                    db_grouped_inn[norm] = inn_db
 
             db_grouped_final = {
-                k: "; ".join(v) for k, v in db_grouped.items() if v
+                k: "; ".join(v) for k, v in db_grouped_awards.items() if v
             }
 
             wx.CallAfter(self.progress_gauge.SetValue, 80)
@@ -132,11 +141,16 @@ class ComparisonReportFrame(wx.Frame):
                 pib_norm = row.get("ПІБ_norm", "")
                 found_awards = db_grouped_final.get(pib_norm, "—")
                 
+                # Берімо РНОКПП з CSV, а якщо його там немає — підтягуємо з бази даних
+                row_inn = row.get("РНОКПП", "").strip()
+                if not row_inn:
+                    row_inn = db_grouped_inn.get(pib_norm, "")
+                
                 self.result_data.append({
                     "Звання": row.get("Звання", ""),
                     "ПІБ": row.get("ПІБ", ""),
                     "Посада": row.get("Посада", ""),
-                    "РНОКПП": row.get("РНОКПП", ""),
+                    "РНОКПП": row_inn,
                     "Знайдені нагороди / подання": found_awards
                 })
 
