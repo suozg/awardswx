@@ -112,7 +112,7 @@ class ComparisonReportFrame(wx.Frame):
 
             wx.CallAfter(self.progress_gauge.SetValue, 60)
 
-            # ГРУПУВАННЯ записів з БД (зберігаємо і нагороди, і РНОКПП з БД)
+            # ГРУПУВАННЯ записів з БД (розділяємо нагороди та РНОКПП)
             db_grouped_awards = {}
             db_grouped_inn = {}
             
@@ -126,7 +126,8 @@ class ComparisonReportFrame(wx.Frame):
                 if res and res not in db_grouped_awards[norm]:
                     db_grouped_awards[norm].append(res)
                 
-                if inn_db and norm not in db_grouped_inn:
+                # Зберігаємо РНОКПП з бази для цього ПІБ
+                if inn_db and not db_grouped_inn.get(norm):
                     db_grouped_inn[norm] = inn_db
 
             db_grouped_final = {
@@ -140,22 +141,22 @@ class ComparisonReportFrame(wx.Frame):
             for row in self.input_data:
                 pib_norm = row.get("ПІБ_norm", "")
                 
-                # 1. Шукаємо нагороди (якщо немає в БД, ставимо "—")
+                # Нагороди (якщо немає в базі, ставимо "—")
                 found_awards = db_grouped_final.get(pib_norm, "—")
                 
-                # 2. Завжди визначаємо РНОКПП: спочатку з CSV, якщо порожньо — з бази даних
-                row_inn = row.get("РНОКПП", "").strip()
+                # Пріоритет РНОКПП: спочатку шукаємо в базі даних, якщо там немає — беремо з файлу
+                row_inn = db_grouped_inn.get(pib_norm, "")
                 if not row_inn:
-                    row_inn = db_grouped_inn.get(pib_norm, "")
+                    row_inn = row.get("РНОКПП", "").strip()
                 
                 self.result_data.append({
                     "Звання": row.get("Звання", ""),
                     "ПІБ": row.get("ПІБ", ""),
                     "Посада": row.get("Посада", ""),
-                    "РНОКПП": row_inn,  # Додається для всіх записів за наявності
+                    "РНОКПП": row_inn,  # Заповнюється для всіх записів (з бази або файлу)
                     "Знайдені нагороди / подання": found_awards
                 })
-            
+
             wx.CallAfter(self.progress_gauge.SetValue, 90)
             
             # Передача готових даних у головний потік для відображення в UI
