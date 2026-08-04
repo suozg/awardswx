@@ -139,9 +139,11 @@ class ComparisonReportFrame(wx.Frame):
             self.result_data = []
             for row in self.input_data:
                 pib_norm = row.get("ПІБ_norm", "")
+                
+                # 1. Шукаємо нагороди (якщо немає в БД, ставимо "—")
                 found_awards = db_grouped_final.get(pib_norm, "—")
                 
-                # Берімо РНОКПП з CSV, а якщо його там немає — підтягуємо з бази даних
+                # 2. Завжди визначаємо РНОКПП: спочатку з CSV, якщо порожньо — з бази даних
                 row_inn = row.get("РНОКПП", "").strip()
                 if not row_inn:
                     row_inn = db_grouped_inn.get(pib_norm, "")
@@ -150,10 +152,10 @@ class ComparisonReportFrame(wx.Frame):
                     "Звання": row.get("Звання", ""),
                     "ПІБ": row.get("ПІБ", ""),
                     "Посада": row.get("Посада", ""),
-                    "РНОКПП": row_inn,
+                    "РНОКПП": row_inn,  # Додається для всіх записів за наявності
                     "Знайдені нагороди / подання": found_awards
                 })
-
+            
             wx.CallAfter(self.progress_gauge.SetValue, 90)
             
             # Передача готових даних у головний потік для відображення в UI
