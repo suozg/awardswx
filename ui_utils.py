@@ -73,6 +73,7 @@ class ComparisonReportFrame(wx.Frame):
         thread = threading.Thread(target=self.process_in_thread, daemon=True)
         thread.start()
 
+
     def process_in_thread(self):
         """Отримує дані з БД, порівнює зі списком у фоновому потоці та оновлює GUI."""
         conn = None
@@ -127,7 +128,7 @@ class ComparisonReportFrame(wx.Frame):
                     db_grouped_awards[norm].append(res)
                 
                 # Записуємо РНОКПП обов'язково, якщо він є в базі для цього ПІБ
-                if inn_db:
+                if inn_db and not db_grouped_inn.get(norm):
                     db_grouped_inn[norm] = inn_db
 
             db_grouped_final = {
@@ -136,15 +137,16 @@ class ComparisonReportFrame(wx.Frame):
 
             wx.CallAfter(self.progress_gauge.SetValue, 80)
 
-            # ГОЛОВНИЙ ЦИКЛ: формуємо результуючий список
+            # ГОЛОВНИЙ ЦИКЛ: формуємо результуючий список для ВСІХ записів вхідного файлу
             self.result_data = []
             for row in self.input_data:
                 pib_norm = row.get("ПІБ_norm", "")
                 
-                # 1. Нагороди (якщо немає, ставимо "—")
+                # 1. Нагороди (якщо немає в базі чи за фільтрами, ставимо "—")
                 found_awards = db_grouped_final.get(pib_norm, "—")
                 
-                # 2. РНОКПП: Пріоритет за базою даних, якщо в базі немає — беремо з вхідного файлу
+                # 2. РНОКПП: завжди беремо з бази даних, якщо воно там є для цього ПІБ. 
+                # Якщо в базі немає — залишаємо те, що було у вхідному файлі.
                 row_inn = db_grouped_inn.get(pib_norm, "")
                 if not row_inn:
                     row_inn = row.get("РНОКПП", "").strip()
@@ -153,7 +155,7 @@ class ComparisonReportFrame(wx.Frame):
                     "Звання": row.get("Звання", ""),
                     "ПІБ": row.get("ПІБ", ""),
                     "Посада": row.get("Посада", ""),
-                    "РНОКПП": row_inn,  # Вставляється завжди (з бази або з файлу)
+                    "РНОКПП": row_inn,  # Підтягується з бази для всіх знайдених людей
                     "Знайдені нагороди / подання": found_awards
                 })
 
@@ -169,7 +171,8 @@ class ComparisonReportFrame(wx.Frame):
             if conn: 
                 try: conn.close()
                 except Exception: pass
-    
+                
+
     def update_gui_after_processing(self):
         """Оновлює елементи таблиці та UI у головному потоці."""
         self.grid.CreateGrid(len(self.result_data), len(self.columns_names))
@@ -1064,6 +1067,28 @@ def build_query(filters, zvit_fields):
 
         params.update(award_params_awarding)
 
+        # query = f"""
+        #     SELECT
+        #         p.name, p.rank, p.unit,
+        #         pr.registration, pr.date_registration, pr.text_presentation, pr.report,
+        #         m.decree, m.date_decree,
+        #         a.denotation,
+        #         m.date_handover,
+        #         p2.name,
+        #         m.consignment_note, m.number_meed, m.dead, p.inn, p.date_birth
+        #     FROM meed m
+        #     JOIN personality p ON m.id_personality = p.id
+        #     JOIN award a ON m.id_award = a.id
+        #     LEFT JOIN (
+        #         SELECT id, id_personality, id_meed, worker,
+        #           registration, date_registration, text_presentation, report
+        #         FROM presentation
+        #         {presentation_subquery_where}
+        #     ) pr ON m.id = pr.id_meed
+        #     LEFT JOIN personality p2 ON p2.id = m.handover
+        #     {awarding_where_string}
+        #     {id_order_name_alph}
+        #     """
         query = f"""
             SELECT
                 p.name, p.rank, p.unit,
@@ -1073,9 +1098,9 @@ def build_query(filters, zvit_fields):
                 m.date_handover,
                 p2.name,
                 m.consignment_note, m.number_meed, m.dead, p.inn, p.date_birth
-            FROM meed m
-            JOIN personality p ON m.id_personality = p.id
-            JOIN award a ON m.id_award = a.id
+            FROM personality p
+            LEFT JOIN meed m ON m.id_personality = p.id
+            LEFT JOIN award a ON m.id_award = a.id
             LEFT JOIN (
                 SELECT id, id_personality, id_meed, worker,
                   registration, date_registration, text_presentation, report
@@ -1086,7 +1111,7 @@ def build_query(filters, zvit_fields):
             {awarding_where_string}
             {id_order_name_alph}
             """
-
+    
     elif mode == 'submission':
         id_worker_condition = ""
         id_worker_map = {"Усі": "_", "ВП": "0", "МПЗ": "1", "Інші": "2"}
@@ -1163,6 +1188,22 @@ def build_query(filters, zvit_fields):
         if submission_conditions_list:
             submission_where_string = "WHERE " + " AND ".join(submission_conditions_list)
 
+        # query = f"""
+        #      SELECT p.name, p.rank, p.unit, pr.registration,
+        #           pr.date_registration, pr.text_presentation, pr.report,
+        #           m.decree, m.date_decree,
+        #           a.denotation,
+        #           m.date_handover,
+        #           CASE WHEN p2.name IS NOT NULL THEN p2.name ELSE m.handover END,
+        #           m.consignment_note, m.number_meed, m.dead, p.inn, p.date_birth
+        #      FROM presentation pr
+        #      JOIN personality p ON pr.id_personality = p.id
+        #      LEFT JOIN meed m ON m.id = pr.id_meed
+        #      LEFT JOIN award a ON m.id_award = a.id
+        #      LEFT JOIN personality p2 ON p2.id = m.handover
+        #      {submission_where_string}
+        #      {id_order_name_alph}
+        #      """
         query = f"""
              SELECT p.name, p.rank, p.unit, pr.registration,
                   pr.date_registration, pr.text_presentation, pr.report,
@@ -1171,14 +1212,15 @@ def build_query(filters, zvit_fields):
                   m.date_handover,
                   CASE WHEN p2.name IS NOT NULL THEN p2.name ELSE m.handover END,
                   m.consignment_note, m.number_meed, m.dead, p.inn, p.date_birth
-             FROM presentation pr
-             JOIN personality p ON pr.id_personality = p.id
+             FROM personality p
+             LEFT JOIN presentation pr ON pr.id_personality = p.id
              LEFT JOIN meed m ON m.id = pr.id_meed
              LEFT JOIN award a ON m.id_award = a.id
              LEFT JOIN personality p2 ON p2.id = m.handover
              {submission_where_string}
              {id_order_name_alph}
-             """
+             """    
+
     else:
         query = ""
         params = {}
