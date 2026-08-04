@@ -112,7 +112,7 @@ class ComparisonReportFrame(wx.Frame):
 
             wx.CallAfter(self.progress_gauge.SetValue, 60)
 
-            # ГРУПУВАННЯ записів з БД (розділяємо нагороди та РНОКПП)
+            # ГРУПУВАННЯ записів з БД
             db_grouped_awards = {}
             db_grouped_inn = {}
             
@@ -126,8 +126,8 @@ class ComparisonReportFrame(wx.Frame):
                 if res and res not in db_grouped_awards[norm]:
                     db_grouped_awards[norm].append(res)
                 
-                # Зберігаємо РНОКПП з бази для цього ПІБ
-                if inn_db and not db_grouped_inn.get(norm):
+                # Записуємо РНОКПП обов'язково, якщо він є в базі для цього ПІБ
+                if inn_db:
                     db_grouped_inn[norm] = inn_db
 
             db_grouped_final = {
@@ -136,15 +136,15 @@ class ComparisonReportFrame(wx.Frame):
 
             wx.CallAfter(self.progress_gauge.SetValue, 80)
 
-            # LEFT JOIN вхідного списку CSV та даних з БД
+            # ГОЛОВНИЙ ЦИКЛ: формуємо результуючий список
             self.result_data = []
             for row in self.input_data:
                 pib_norm = row.get("ПІБ_norm", "")
                 
-                # Нагороди (якщо немає в базі, ставимо "—")
+                # 1. Нагороди (якщо немає, ставимо "—")
                 found_awards = db_grouped_final.get(pib_norm, "—")
                 
-                # Пріоритет РНОКПП: спочатку шукаємо в базі даних, якщо там немає — беремо з файлу
+                # 2. РНОКПП: Пріоритет за базою даних, якщо в базі немає — беремо з вхідного файлу
                 row_inn = db_grouped_inn.get(pib_norm, "")
                 if not row_inn:
                     row_inn = row.get("РНОКПП", "").strip()
@@ -153,13 +153,11 @@ class ComparisonReportFrame(wx.Frame):
                     "Звання": row.get("Звання", ""),
                     "ПІБ": row.get("ПІБ", ""),
                     "Посада": row.get("Посада", ""),
-                    "РНОКПП": row_inn,  # Заповнюється для всіх записів (з бази або файлу)
+                    "РНОКПП": row_inn,  # Вставляється завжди (з бази або з файлу)
                     "Знайдені нагороди / подання": found_awards
                 })
 
             wx.CallAfter(self.progress_gauge.SetValue, 90)
-            
-            # Передача готових даних у головний потік для відображення в UI
             wx.CallAfter(self.update_gui_after_processing)
 
         except Exception as e:
@@ -171,7 +169,7 @@ class ComparisonReportFrame(wx.Frame):
             if conn: 
                 try: conn.close()
                 except Exception: pass
-
+    
     def update_gui_after_processing(self):
         """Оновлює елементи таблиці та UI у головному потоці."""
         self.grid.CreateGrid(len(self.result_data), len(self.columns_names))
