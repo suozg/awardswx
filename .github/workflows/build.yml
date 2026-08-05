@@ -1,8 +1,6 @@
 name: Build Windows + Debian 12
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 jobs:
