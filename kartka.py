@@ -17,6 +17,7 @@ from database_logic import (
 )
 
 from ui_utils import load_image_from_blob, ComboSearchHelper
+from keymap_kartka import setup_accelerators, bind_help_tooltips
 
 AWARD_IMAGE_SIZE = 80 # размер картинки
 CURRENT_DATA = wx.DateTime.Now()
@@ -170,7 +171,10 @@ class KartkaPanel(scrolled.ScrolledPanel):
         # --- Кінець блоку атрибутів обробки результатів пошуку ---
 
         self.build_ui()
-
+        # --- Підключаємо гарячі клавіші та хелп з keymap_kartka.py ---
+        setup_accelerators(self, self.on_save, self.on_hotkey_find, self.clear_person_data)
+        bind_help_tooltips(self)
+        
         self.SetupScrolling() # Викликати після build_ui
         self.Bind(wx.EVT_WINDOW_DESTROY, self.OnDestroy)
 
@@ -179,6 +183,10 @@ class KartkaPanel(scrolled.ScrolledPanel):
     def OnDestroy(self, event):
         event.Skip()
 
+    def on_hotkey_find(self, event):
+        """Швидкий перехід на поле вибору особи за Ctrl+F"""
+        if self.person_search_results_ctrl:
+            self.person_search_results_ctrl.SetFocus()
 
     # -------------- методи построения елементов интерфейса ---------------
 
@@ -290,12 +298,12 @@ class KartkaPanel(scrolled.ScrolledPanel):
         grid.Add(self.submission_number_ctrl, 0, wx.EXPAND) # proportion 0 тут, розтягування в FlexGridSizer
 
         # Дата реєстрації подання
-        grid.Add(wx.StaticText(self, label="Дата:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5) # Додано відступ
+        grid.Add(wx.StaticText(self, label="Дата (м/д/р):"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5) # Додано відступ
         self.PresDATE = wx.adv.DatePickerCtrl(self, style=wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY) 
         grid.Add(self.PresDATE, 0) # proportion 0
 
         # Виконавець подання
-        grid.Add(wx.StaticText(self, label="Виконавець:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5) # Додано відступ
+        grid.Add(wx.StaticText(self, label="Вик.:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5) # Додано відступ
         # Припустимо, вибір виконавців завантажується з БД
         executor_choices = ["", "ВП", "МПЗ", "Інші"] # Приклад
         self.submission_executor_ctrl = wx.Choice(self, choices=executor_choices) 
@@ -403,7 +411,7 @@ class KartkaPanel(scrolled.ScrolledPanel):
         self.award_basis_ctrl = wx.TextCtrl(self)
         left_grid.Add(self.award_basis_ctrl, 1, wx.EXPAND) # Використовуємо вагу 1, щоб дозволити розтягування
 
-        self.date_decree_label = wx.StaticText(self, label="Дата нагородження:")
+        self.date_decree_label = wx.StaticText(self, label="Дата (м/д/р):")
         left_grid.Add(self.date_decree_label, 0, wx.ALIGN_CENTER_VERTICAL)
         self.award_date_ctrl = wx.adv.DatePickerCtrl(self, style=wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY)
         left_grid.Add(self.award_date_ctrl, 1, wx.EXPAND) # Використовуємо вагу 1

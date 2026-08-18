@@ -163,7 +163,35 @@ class MainFrame(wx.Frame):
                 dlg.Destroy()
                 return None # Користувач відмінив
                 
-    
+    def on_key_navigation(self, event):
+        """Обробник глобальних гарячих клавіш для перемикання вкладок"""
+        ctrl_down = event.ControlDown()
+        shift_down = event.ShiftDown()
+        keycode = event.GetKeyCode()
+        
+        page_count = self.notebook.GetPageCount()
+        current_sel = self.notebook.GetSelection()
+
+        if ctrl_down:
+            # Ctrl + Tab (наступна вкладка) або Ctrl + Shift + Tab (попередня вкладка)
+            if keycode == wx.WXK_TAB:
+                if shift_down:
+                    new_sel = (current_sel - 1) % page_count
+                else:
+                    new_sel = (current_sel + 1) % page_count
+                self.notebook.SetSelection(new_sel)
+                return
+
+            # Перехід за допомогою цифрових клавіш від Ctrl + 1 до Ctrl + 9
+            if ord('1') <= keycode <= ord('9'):
+                target_idx = keycode - ord('1')
+                if target_idx < page_count:
+                    self.notebook.SetSelection(target_idx)
+                    return
+
+        event.Skip()   
+
+   
     def init_ui(self):
         """Инициализация интерфейса."""
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -349,7 +377,9 @@ class MainFrame(wx.Frame):
 
         notebook.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_tab_changed)
         self.notebook = notebook
-
+        # --- Додаємо обробку швидких клавіш для перемикання вкладок ---
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_key_navigation)
+        
         self.SetSizer(vbox)
         self.Layout()
 

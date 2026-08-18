@@ -6,7 +6,7 @@ class SearchPanel(wx.Panel):
     def __init__(self, parent, conn, cursor, fut_place=None):
         super().__init__(parent, wx.ID_ANY)
         self.conn = conn
-        self.cursor = cursor # <-- Курсор сохраняется здесь
+        self.cursor = cursor 
         self.fut_place = fut_place
         self.last_message = ""
         self.results = []

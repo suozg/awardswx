@@ -1174,7 +1174,6 @@ class Tab4Panel(scrolled.ScrolledPanel):
             # Фільтри для режиму Подання
             "submission_status": self.submission_status_filter if self.mode_toggle_state == 1 else None,
             "specific_submission": self.is_specific_submission_filter if self.mode_toggle_state == 1 else False,
-            #"submission_number": self.specific_submission_combo.GetValue() if self.mode_toggle_state == 1 and self.is_specific_submission_filter else None,
             "submission_number": self.specific_submission_combo.GetValue() if self.mode_toggle_state == 1 and self.is_specific_submission_filter else None,
         }
 
