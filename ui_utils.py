@@ -97,11 +97,24 @@ class ComparisonReportFrame(wx.Frame):
             if raw_db_data:
                 for r in raw_db_data:
                     pib = str(r[0]).strip() if r[0] else ""
-                    award_or_pres = str(r[9]).strip() if r[9] else (str(r[5]).strip() if len(r) > 5 and r[5] else "")
-                    date_dec = str(r[8]).strip() if len(r) > 8 and r[8] else (str(r[4]).strip() if len(r) > 4 and r[4] else "")
-                    inn_db = str(r[15]).strip() if len(r) > 15 and r[15] else "" # РНОКПП з бази даних (індекс 15)
                     
-                    award_text = f"{award_or_pres} ({date_dec})" if date_dec else award_or_pres
+                    # Перевіряємо режим: якщо є нагорода (r[9]), беремо її, інакше це подання — беремо номер подання (r[3])
+                    if len(r) > 9 and r[9]:
+                        award_or_pres = str(r[9]).strip()
+                        date_dec = str(r[8]).strip() if len(r) > 8 and r[8] else ""
+                        pr_descr = ""
+                    else:
+                        # Це режим подань: беремо номер подання з індекса 3, дату з індекса 4, рух з 6
+                        pres_reg = str(r[3]).strip() if len(r) > 3 and r[3] else ""
+                        award_or_pres = f"Подання №{pres_reg}" if pres_reg else ""
+                        date_dec = str(r[4]).strip() if len(r) > 4 and r[4] else ""
+                        pr_descr = str(r[6]).strip() if len(r) > 6 and r[6] else ""
+                    try:
+                        inn_db = str(int(float(r[15]))) if len(r) > 15 and r[15] is not None and str(r[15]).strip() else ""
+                    except (ValueError, TypeError):
+                        inn_db = str(r[15]).strip() if len(r) > 15 and r[15] else ""
+
+                    award_text = f"{award_or_pres} {pr_descr} ({date_dec})" if date_dec else award_or_pres
                     pib_norm = " ".join(pib.upper().split())
                     
                     if pib_norm:
