@@ -54,6 +54,13 @@ class Tab1Panel(wx.Panel):
     def OnDestroy(self, event):
         # Важливо викликати event.Skip(), щоб подія оброблялася далі по ланцюжку
         event.Skip()
+    
+    def set_focus_to_search(self):
+        """Встановлює фокус на поле пошукового запиту."""
+        if hasattr(self, 'entry1') and self.entry1:
+            self.entry1.SetFocus()
+            # Опціонально: виділити весь текст у полі
+            self.entry1.SetSelection(-1, -1)
 
     # --- Методи построения интерфейса вкладки ---
     def init_ui(self):

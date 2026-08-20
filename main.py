@@ -384,6 +384,9 @@ class MainFrame(wx.Frame):
         self.Layout()
 
         self.fut_place.SetLabel(DEF_FUT_LABEL)
+        # Встановлюємо фокус на поле пошуку при старті програми ---
+        if hasattr(self, 'search_panel_instance') and self.search_panel_instance:
+            self.search_panel_instance.set_focus_to_search()
 
 
     def OnClose(self, event):
@@ -436,7 +439,11 @@ class MainFrame(wx.Frame):
             elif current_custom_panel and hasattr(current_custom_panel, "refresh_tree"):
                 current_custom_panel.refresh_tree()
                 self.refreshed_tabs.add(selected_index)
-
+        
+        # Переводимо фокус на поле пошуку, якщо активна вкладка ПОШУК ---
+        if isinstance(current_custom_panel, Tab1Panel):
+            current_custom_panel.set_focus_to_search()
+        
         # Дополнительная логика для KartkaPanel
         try:
             if isinstance(current_custom_panel, KartkaPanel):
