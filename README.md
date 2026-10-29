@@ -1,139 +1,206 @@
-# AWARDS v.4.1
+# AWARDS v4.1
 
-Програма для роботи з нагородженнями
+**AWARDS** — кросплатформений настільний застосунок для обліку нагороджень, подань, нагороджених і супровідних даних. Програма призначена для роботи із зашифрованою базою SQLCipher та дає змогу швидко знаходити людей, переглядати їхні нагороди й подання, формувати звіти та експортувати результати.
 
-![Awards_4.1](screenshots/Screenshot%202025-06-21%2015.28.26.png)
+![AWARDS](screenshots/Screenshot%202025-06-21%2015.28.26.png)
 
-----
+## Основні можливості
 
-# Download 
-https://github.com/suozg/awardswx/releases/latest
+- Пошук нагороджених за ПІБ або РНОКПП.
+- Перегляд картки особи з нагородами та поданнями.
+- Перевірка та відображення коректності РНОКПП і визначення дати народження.
+- Статистика та графік динаміки нагороджень за роками.
+- Робота з довідником нагород:
+  - перегляд нормативного акта та опису нагороди;
+  - створення, редагування й видалення записів;
+  - збереження зображень нагород;
+  - зміна категорії нагороди перетягуванням у режимі редагування.
+- Формування звітів за нагородженнями або поданнями.
+- Фільтрація звітів за:
+  - періодом або всім часом;
+  - категорією особи — офіцери, сержанти, солдати, військові, цивільні;
+  - підрозділом і виконавцем;
+  - статусом вручення нагороди;
+  - накладною та рангом/назвою нагороди;
+  - посмертним нагородженням;
+  - статусом подання та конкретним номером подання.
+- Порівняння даних із зовнішнім CSV-файлом зі списком людей.
+- Експорт звітів у **XLSX** та **CSV**.
+- Повнотекстовий пошук тексту подань через SQLite FTS3.
+- Вебпошук указів про відзначення державними нагородами України на сайті Верховної Ради України.
+- Довідник нормативних актів із відкриттям посилань у браузері.
+- SQL-консоль із виконанням запитів, `EXPLAIN QUERY PLAN`, автодоповненням і експортом `SELECT` у CSV.
+- Налаштування логотипа, колонок звіту, шляху збереження та довідників звань/підрозділів.
+- Вбудована гра «Життя» як пасхалка на вкладці «Про програму».
 
-![Приклад бази даних](awards_0v4e.db)
+## Готові скомпільовані файли
 
-Встановлення не потрібне, працює так.
+Встановлення Python та залежностей для готової версії не потрібне. Скомпільовані архіви можна завантажити зі сторінки релізу **[05082026](https://github.com/suozg/awardswx/releases/tag/05082026)**:
 
-Виконати програму з цим файлом (пароль 1)
-```
+- **Windows 10 і новіші:** [`awardswx-windows.zip`](https://github.com/suozg/awardswx/releases/download/05082026/awardswx-windows.zip)
+- **Linux / Debian 12:** [`awardswx-debian12.zip`](https://github.com/suozg/awardswx/releases/download/05082026/awardswx-debian12.zip)
+- [Усі релізи](https://github.com/suozg/awardswx/releases)
+
+Розпакуйте архів у будь-яку папку та запустіть виконуваний файл `awardswx` або `awardswx.exe`. Готові файли призначені для відповідної операційної системи; Linux-архів зібрано для Debian 12 та сумісних систем.
+
+> У репозиторії також доступний архів [`awardswx-main.zip`](https://github.com/suozg/awardswx/releases/download/05082026/awardswx-main.zip) із файлами проєкту.
+
+## Запуск готової Windows-версії
+
+У комплекті можна використовувати демонстраційну базу `awards_0v4e.db`. Пароль демонстраційної бази: **`1`**.
+
+```text
 awardswx.exe -c awards_0v4e.db
 ```
 
-або через ярлик:
-1. Знайдіть файл awardswx.exe у провіднику. Натисніть на нього правою кнопкою миші та оберіть Надіслати (Send to) > Робочий стіл (створити ярлик).
+Параметр `-c` задає шлях до файлу бази даних. Якщо база лежить в іншій папці, використовуйте повний шлях:
 
-2. Перейдіть на робочий стіл, натисніть праву кнопку миші на новому ярлику та оберіть Властивості (Properties).
-- Перейдіть на вкладку Ярлик (Shortcut).
-- Знайдіть поле Об'єкт (Target). Там уже буде вказано повний шлях до програми в лапках.
-- Поставте курсор у кінець рядка (після лапок), додайте пробіл і впишіть ваші параметри: -c awards_0v4e.db.
+```text
+awardswx.exe -c "C:\Users\Admin\Documents\awards_0v4e.db"
+```
 
-Рядок має виглядати приблизно так:
-"C:\Path\To\Your\Folder\awardswx.exe" -c awards_0v4e.db
+Для власної бази достатньо передати її шлях тим самим параметром. Якщо вказаний файл не існує, програма запропонує створити нову зашифровану базу та попросить пароль.
 
-3. Налаштування робочої папки. Оскільки ви вказуєте файл бази даних awards_0v4e.db без повного шляху, програма шукатиме його в "Робочій папці".
+## Запуск готової Linux-версії
 
-У полі Робоча папка (Start in) переконайтеся, що вказано шлях до папки, де лежить і екзешник, і файл .db.
+Після розпакування архіву:
 
-Якщо база даних лежить в іншому місці, краще вказати повний шлях і до неї в полі "Об'єкт":
-...awardswx.exe" -c "C:\Users\Admin\Documents\awards_0v4e.db"
+```bash
+chmod +x awardswx
+./awardswx -c /path/to/awards.db
+```
 
+Для роботи з SQLCipher і wxPython потрібне сумісне системне оточення Debian 12. Рекомендується запускати програму з каталогу, де розташовані виконуваний файл і потрібна база даних.
 
--------
-# Build and Setup Instructions
+## Структура проєкту
 
-## WINDOWS
+```text
+main.py                 Точка входу та головне вікно wxPython
+config.py               Налаштування програми, версія й назви колонок
+database_logic.py       Підключення SQLCipher, пошук і запити до БД
+create_db0.py           Створення схеми та початкових даних бази
+settings_manager.py     Завантаження налаштувань і зображень із БД
+ui_utils.py             Побудова звітів, CSV/XLSX-експорт і робота із зображеннями
 
-Follow these steps to set up the development environment and compile the application.
+search_tab.py           Пошук людей, нагород і статистика
+kartka.py               Картка нагородженого
+text_present_search.py  Повнотекстовий пошук подань
+zvity.py                Звіти та фільтри нагороджень/подань
+setuptab.py             Налаштування бази, звітів, логотипа й довідників
+dovidnyk.py             Довідник та редагування нагород
+tablaw.py               Довідник нормативних актів
+websearch.py            Вебпошук указів про нагородження
+sql_console.py          SQL-консоль, EXPLAIN і CSV-експорт
+graph.py                Графік статистики нагороджень
+info.py                 Вкладка «Про програму» та запуск гри
+gameoflife.py           Вбудована гра «Життя»
 
-1. Prerequisites
-Python 3.11: Ensure Python 3.11 is installed. You can download it from python.org.
-Ensure is installed and configured in your System PATH.
+main.spec               Специфікація PyInstaller
+screenshots/            Знімки екрана
+awards_0v4e.db          Демонстраційна база даних
+```
 
-2. Project Setup               
-    2.1 Download project from Git or clone
+## Технології
 
-    2.2 In PowerShell or CMD
-   ```
-        cd Project_DIR 
-   ```
-    2.3 Create a virtual environment
-         
-   ```
-        python -m venv venv
+- **Python 3.11**
+- **wxPython** — графічний інтерфейс і вкладки застосунку
+- **SQLite / SQLCipher 3** через `sqlcipher3` — зашифроване зберігання
+- **SQLite FTS3** — повнотекстовий пошук подань
+- **Pillow** — обробка зображень у BLOB-полях бази
+- **openpyxl** — формування XLSX-звітів
+- **BeautifulSoup4** та **Requests** — вебпошук указів
+- **PyInstaller** — створення автономних виконуваних файлів
 
-   ```
-    2.4 Activate the virtual environment
-      
-   ```
-        #For PowerShell:                    
-            .\venv\Scripts\Activate.ps1
+## Встановлення з вихідного коду
 
-        #For CMD:              
-            .\venv\Scripts\activate.bat
+Для збирання з вихідного коду потрібен Python 3.11.
 
-   ```
-4. Install Dependencies
-Once the virtual environment is active (venv), run the following commands:
+### Windows
 
-   ```
-        python -m pip install --upgrade pip
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install wxPython Pillow bs4 openpyxl requests pyinstaller sqlcipher3-wheels
+python main.py
+```
 
-   ```
-    3.1 Install required packages
+Якщо програма запускається, створіть виконуваний файл:
 
-   ```
-        pip install wxPython sqlcipher3-wheels Pillow bs4 openpyxl requests           
+```powershell
+pyinstaller --clean main.spec
+```
 
-   ```
-4. Verification and Building
+Результат буде в каталозі `dist/awardswx.exe`.
 
-    4.1 Test
-    
-   ```
-        python main.py
+### Linux / Debian 12
 
-   ```
-    4.2 If the application starts successfully, use PyInstaller to build the .exe file using your spec file:
-        
-   ```
-        pip install pyinstaller
-        pyinstaller main.spec
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-dev build-essential \
+  python3-wxgtk4.0 libgtk-3-0 libgtk-3-dev libwebkit2gtk-4.0-dev
 
-   ```
+python3 -m venv venv --system-site-packages
+source venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install Pillow bs4 openpyxl requests pyinstaller sqlcipher3-wheels
+python main.py
+```
 
+Створення Linux-бінарного файлу:
 
+```bash
+pyinstaller --clean main.spec
+```
 
-## LINUX
+Результат буде в каталозі `dist/awardswx`.
 
-   ```
-    sudo apt update             
-    sudo apt install sqlcipher 
-    
-    python3 -m venv --system-site-packages venv             
+> PyInstaller не є кроскомпілятором: Windows-версію потрібно збирати у Windows, а Linux-версію — у Linux. Специфікація `main.spec` використовує `onefile`, `console=False` та автоматично збирає модулі й дані wxPython.
 
-    # добавить в venv/bin/activate системние пакети:            
-        export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH              
+## Автоматична збірка
 
-    source venv/bin/activate               
-    
-   ```
+У `.github/workflows/build.yml` налаштовано workflow **Build Windows + Debian 12**, який запускається вручну через GitHub Actions (`workflow_dispatch`). Він створює артефакти:
 
-проверка
+- `awardswx-windows` — Windows-збірка;
+- `awardswx-debian12` — Linux-збірка в контейнері Debian 12.
 
-   ```
-    cd awardswx_dir
-    python main.py
+Після збірки артефакти можна додати до GitHub Release.
 
-    если ошибка - установить модули:
-    
-    python -m pip install --upgrade pip setuptools wheel               
-    pip install wxPython sqlcipher3-binary Pillow bs4 openpyxl requests 
+## Формат бази даних і безпека
 
-   ```
-    
-компиляция
+База створюється функцією `create_database()` у `create_db0.py` та містить таблиці:
 
-   ```
-    pip install pyinstaller          
-    pyinstaller main.spec
+- `personality` — люди;
+- `award` — нагороди та їхні зображення;
+- `meed` — записи про нагородження;
+- `presentation` — подання;
+- `presentation_fts` — FTS3-індекс текстів подань;
+- `law` — нормативні акти;
+- `libs` — довідники звань і підрозділів;
+- `service_` — налаштування, логотипи та параметри звітів.
 
-   ```
+Підключення до бази виконується через SQLCipher із ключем, `cipher_compatibility = 3`, `kdf_iter = 64000` і режимом WAL. Робіть резервні копії `.db`-файлів і не зберігайте реальні бази з персональними даними у відкритому репозиторії.
+
+> Демонстраційний пароль `1` призначений лише для прикладової бази. Для робочої бази використовуйте власний складний пароль і змініть його після першого запуску.
+
+## Обмеження та відомі особливості
+
+- Автоматизованих тестів у репозиторії не виявлено.
+- Вебпошук залежить від доступності та структури сайту `zakon.rada.gov.ua`.
+- Файли, створені на одній ОС, не слід вважати універсальними для іншої ОС.
+- Перед масовим використанням перевірте звіти на копії робочої бази.
+- SQL-консоль дозволяє виконувати `INSERT`, `UPDATE` та `DELETE`; необережний запит може пошкодити дані.
+
+## Участь у розробці
+
+Пропозиції та зміни вітаються. Базовий процес описано у [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Ліцензія
+
+Проєкт поширюється за ліцензією [GNU GPL v2.0](LICENSE.txt).
+
+Copyright © 2023–2026 Олексій Холодов.
+
+## Автор
+
+[suozg](https://github.com/suozg)
