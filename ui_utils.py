@@ -38,6 +38,35 @@ def normalize_pib(value):
     return " ".join(str(value).strip().upper().split())
 
 
+def format_award_or_submission_text(r):
+    # Для нагороди:
+    award_name = str(r[9]).strip() if len(r) > 9 and r[9] else ""
+    decision_no = str(r[7]).strip() if len(r) > 7 and r[7] else ""
+    decision_date = str(r[8]).strip() if len(r) > 8 and r[8] else ""
+
+    # Для подання:
+    presentation_no = str(r[3]).strip() if len(r) > 3 and r[3] else ""
+    presentation_date = str(r[4]).strip() if len(r) > 4 and r[4] else ""
+    presentation_text = str(r[5]).strip() if len(r) > 5 and r[5] else ""
+
+    # 1) Якщо є нагорода — формат як нагорода
+    if award_name:
+        if decision_no and decision_date:
+            return f"{award_name} (№{decision_no} від {decision_date})"
+        if decision_date:
+            return f"{award_name} ({decision_date})"
+        return award_name
+
+    # 2) Якщо нема нагороди, але є подання — формат як подання
+    if presentation_no and presentation_date:
+        return f"Подання №{presentation_no} від {presentation_date}"
+    if presentation_no:
+        return f"Подання №{presentation_no}"
+    if presentation_text:
+        return presentation_text
+
+    return ""
+
 def build_comparison_result(input_data, db_rows, mode="columns"):
     """
     mode:
@@ -244,11 +273,12 @@ class ComparisonReportFrame(wx.Frame):
             if raw_db_data:
                 for r in raw_db_data:
                     pib = str(r[0]).strip() if r[0] else ""
-                    award_or_pres = str(r[9]).strip() if r[9] else (str(r[3]).strip() if len(r) > 3 and r[3] else "")
-                    date_dec = str(r[8]).strip() if len(r) > 8 and r[8] else (str(r[4]).strip() if len(r) > 4 and r[4] else "")
-                    inn_db = normalize_inn(r[15]) if len(r) > 15 else ""
-                    award_text = f"{award_or_pres} ({date_dec})" if date_dec else award_or_pres
                     pib_norm = normalize_pib(pib)
+
+                    inn_db = normalize_inn(r[15]) if len(r) > 15 else ""
+                    
+                    # форматований вивід даних про нагородження
+                    award_text = format_award_or_submission_text(r)
 
                     if pib_norm:
                         db_rows.append({

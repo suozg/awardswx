@@ -1,0 +1,8 @@
+wxPython
+sqlcipher3-wheels
+Pillow
+openpyxl
+requests
+beautifulsoup4
+pyinstaller
+pytest

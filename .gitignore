@@ -15,4 +15,5 @@ venv/
 .DS_Store
 #*.bin
 #*.exe
+TODO.md
 
