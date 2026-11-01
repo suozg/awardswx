@@ -14,178 +14,28 @@ from PIL import Image
 from PIL import ImageEnhance
 from config import ALL_COLUMN_LABELS
 
-MIN_ROW_HEIGHT = 25
-MAX_WIDTH = 300 
-
-
-class ExportMixin:
-    """Спільний міксер для експорту даних у Excel та CSV звітів."""
-    
-    def on_export_excel(self, event):
-        # Визначаємо джерело даних (у ComparisonReportFrame це self.result_data, у ReportGeneratorWx — self.data)
-        data_source = getattr(self, 'result_data', getattr(self, 'data', None))
-        if not data_source:
-            wx.MessageBox("Немає даних для експорту.", "Інформація", wx.OK | wx.ICON_INFORMATION)
-            return
-
-        defaultDir = getattr(self, 'zvit_dir', None) or os.getcwd()
-        with wx.FileDialog(self, "Зберегти звіт у Excel",
-                           wildcard="Excel files (*.xlsx)|*.xlsx",
-                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
-                           defaultDir=defaultDir,
-                           defaultFile="звіт.xlsx") as fileDialog:
-
-            if fileDialog.ShowModal() == wx.ID_CANCEL:
-                return
-
-            pathname = fileDialog.GetPath()
-            try:
-                wb = Workbook()
-                ws = wb.active
-                ws.title = "Звіт"
-
-                header_row_index = 1
-                if hasattr(self, 'pre_titlestr') and self.pre_titlestr:
-                    ws.append([self.pre_titlestr])
-                    ws['A1'].font = Font(bold=True)
-                    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(self.columns_names))
-                    ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
-                    header_row_index = 2
-
-                ws.append(self.columns_names)
-                header_font = Font(bold=True)
-                header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                for col_idx, cell in enumerate(ws[header_row_index]):
-                    cell.font = header_font
-                    cell.alignment = header_alignment
-                    col_letter = get_column_letter(col_idx + 1)
-                    ws.column_dimensions[col_letter].width = 20
-
-                data_alignment = Alignment(vertical='top', wrap_text=True)
-                
-                # Підтримка обох форматів зберігання даних (словники або списки списків)
-                for row in data_source:
-                    if isinstance(row, dict):
-                        excel_row_data = [str(row.get(col, "") or "") for col in self.columns_names]
-                    else:
-                        # Якщо це сирий рядок з бази за активними індексами (як у ReportGeneratorWx)
-                        excel_row_data = []
-                        active_cols = getattr(self, 'active_columns', range(len(self.columns_names)))
-                        for data_index in active_cols:
-                            val = row[data_index] if data_index < len(row) else ""
-                            excel_row_data.append(str(val if val is not None else ''))
-
-                    ws.append(excel_row_data)
-
-                for row_idx in range(header_row_index + 1, ws.max_row + 1):
-                     for col_idx in range(1, ws.max_column + 1):
-                        ws.cell(row=row_idx, column=col_idx).alignment = data_alignment
-
-                wb.save(pathname)
-                wx.CallAfter(wx.MessageBox, f"Звіт успішно збережено в {pathname}", "Успіх", wx.OK | wx.ICON_INFORMATION)
-
-            except Exception as e:
-                error_msg = f"Помилка при збереженні звіту: {e}"
-                wx.CallAfter(wx.MessageBox, error_msg, "Помилка", wx.OK | wx.ICON_ERROR)
-
-    def on_export_csv(self, event):
-        data_source = getattr(self, 'result_data', getattr(self, 'data', None))
-        if not data_source:
-            wx.MessageBox("Немає даних для експорту.", "Інформація", wx.OK | wx.ICON_INFORMATION)
-            return
-
-        defaultDir = getattr(self, 'zvit_dir', None) or os.getcwd()
-        with wx.FileDialog(self, "Зберегти звіт у CSV",
-                           wildcard="CSV files (*.csv)|*.csv",
-                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
-                           defaultDir=defaultDir,
-                           defaultFile="звіт.csv") as fileDialog:
-
-            if fileDialog.ShowModal() == wx.ID_CANCEL:
-                return
-
-            pathname = fileDialog.GetPath()
-            try:
-                with open(pathname, mode='w', newline='', encoding='utf-8-sig') as csv_file:
-                    writer = csv.writer(csv_file, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-
-                    if hasattr(self, 'pre_titlestr') and self.pre_titlestr:
-                        writer.writerow([self.pre_titlestr])
-                        writer.writerow([])
-
-                    writer.writerow(self.columns_names)
-
-                    for row in data_source:
-                        if isinstance(row, dict):
-                            csv_row_data = [str(row.get(col, "") or "") for col in self.columns_names]
-                        else:
-                            csv_row_data = []
-                            active_cols = getattr(self, 'active_columns', range(len(self.columns_names)))
-                            for data_index in active_cols:
-                                val = row[data_index] if data_index < len(row) else ""
-                                csv_row_data.append(str(val if val is not None else ''))
-
-                        writer.writerow(csv_row_data)
-
-                wx.CallAfter(wx.MessageBox, f"Звіт успішно збережено в {pathname}", "Успіх", wx.OK | wx.ICON_INFORMATION)
-
-            except Exception as e:
-                error_msg = f"Помилка при збереженні CSV файлу: {e}"
-                wx.CallAfter(wx.MessageBox, error_msg, "Помилка", wx.OK | wx.ICON_ERROR)
-
-
-
 
 # клас вікна результатів звіту зі зіставленням
-class ComparisonReportFrame(wx.Frame, ExportMixin):
+class ComparisonReportFrame(wx.Frame):
     def __init__(self, parent, db_path, key, filters, zvit_fields, zvit_dir, input_data, exel_bmp=None):
-        super().__init__(parent, title="Звіт: Порівняння зі списком", size=(1100, 680))
+        super().__init__(parent, title="Звіт: Порівняння зі списком", size=(950, 680))
 
         self.db_path = db_path
         self.key = key
         self.filters = filters
         self.zvit_fields = zvit_fields
         self.zvit_dir = zvit_dir
-        self.input_data = input_data  
+        self.input_data = input_data  # Список словників
         self._exel_bmp = exel_bmp
-
-        # 1. Визначаємо активні колонки з бази точно так само, як у ReportGeneratorWx
-        if isinstance(self.zvit_fields, str):
-            self.zvit_fields = list(map(int, self.zvit_fields.split(',')))
-
-        self.active_columns = []
-        num_standard_flags = 14
-        for i in range(num_standard_flags):
-            if self.zvit_fields[i] == 1:
-                self.active_columns.append(i)
-
-        last_flag = self.zvit_fields[14] if len(self.zvit_fields) > 14 else 0
-        if last_flag == 1:
-            self.active_columns.append(15) # РНОКПП
-        elif last_flag == 2:
-            self.active_columns.append(16) # Дата народження
-        elif last_flag == 3:
-            self.active_columns.extend([15, 16])
-
-        # Отримуємо назви цих колонок з ALL_COLUMN_LABELS
-        self.db_column_labels = [ALL_COLUMN_LABELS[i] for i in self.active_columns if i < len(ALL_COLUMN_LABELS)]
-
-        # 2. Отримуємо оригінальні ключі (колонки) з вхідного CSV
-        if self.input_data:
-            sample_row = self.input_data[0]
-            self.original_keys = [k for k in sample_row.keys() if not k.endswith('_norm')]
-        else:
-            self.original_keys = ["Звання", "ПІБ", "Посада", "РНОКПП"]
-
-        # Загальний список колонок: оригінальні з CSV + динамічні колонки з налаштувань бази
-        self.columns_names = self.original_keys + self.db_column_labels
 
         self.panel = wx.Panel(self)
         self.grid = wx.grid.Grid(self.panel)
         
+        # Индикатор прогресса
         self.progress_gauge = wx.Gauge(self.panel, range=100, style=wx.GA_HORIZONTAL)
         self.progress_gauge.SetValue(0)
         
+        # Кнопки збереження та закриття
         self.record_count_label = wx.StaticText(self.panel, label="Обробка даних...")
         
         if self._exel_bmp:
@@ -200,6 +50,7 @@ class ComparisonReportFrame(wx.Frame, ExportMixin):
         self.close_button = wx.Button(self.panel, label="Закрити", size=(80, 35))
         self.close_button.Bind(wx.EVT_BUTTON, lambda e: self.Close())
 
+        # Компонування
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         panel_sizer.Add(self.grid, 1, wx.EXPAND | wx.ALL, 5)
         panel_sizer.Add(self.progress_gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
@@ -216,13 +67,15 @@ class ComparisonReportFrame(wx.Frame, ExportMixin):
         self.panel.SetSizer(panel_sizer)
 
         self.result_data = []
+        self.columns_names = ["Звання", "ПІБ", "Посада", "РНОКПП", "Знайдені нагороди / подання"]
         
+        # Запуск обробки у фоновому потоці
         thread = threading.Thread(target=self.process_in_thread, daemon=True)
         thread.start()
 
 
-
     def process_in_thread(self):
+        """Отримує дані з БД, порівнює зі списком у фоновому потоці та оновлює GUI."""
         conn = None
         cursor = None
         try:
@@ -240,70 +93,77 @@ class ComparisonReportFrame(wx.Frame, ExportMixin):
             wx.CallAfter(self.SetTitle, f"Порівняльний звіт — {pre_titlestr}")
             wx.CallAfter(self.progress_gauge.SetValue, 40)
 
-            # Групуємо ВСІ записи з бази для кожного ПІБ у списки
-            db_map = {}
+            db_rows = []
             if raw_db_data:
                 for r in raw_db_data:
                     pib = str(r[0]).strip() if r[0] else ""
+                    award_or_pres = str(r[9]).strip() if r[9] else (str(r[3]).strip() if len(r) > 3 and r[3] else "")
+                    date_dec = str(r[8]).strip() if len(r) > 8 and r[8] else (str(r[4]).strip() if len(r) > 4 and r[4] else "")
+                    inn_db = str(r[15]).strip() if len(r) > 15 and r[15] else "" # РНОКПП з бази даних (індекс 15)
+                    if inn_db.endswith('.0'):
+                        inn_db = inn_db[:-2]
+                    
+                    award_text = f"{award_or_pres} ({date_dec})" if date_dec else award_or_pres
                     pib_norm = " ".join(pib.upper().split())
-                    if not pib_norm:
-                        continue
-                    if pib_norm not in db_map:
-                        db_map[pib_norm] = []
-                    db_map[pib_norm].append(r)
+                    
+                    if pib_norm:
+                        db_rows.append({
+                            "ПІБ_norm": pib_norm,
+                            "Результат_БД": award_text,
+                            "РНОКПП_БД": inn_db
+                        })
 
             wx.CallAfter(self.progress_gauge.SetValue, 60)
 
-            # Фільтруємо активні колонки: прибираємо ті, які вже є в оригінальному CSV (ПІБ, Звання, РНОКПП тощо)
-            original_keys_lower = {k.strip().lower() for k in self.original_keys}
-            filtered_active_columns = []
-            for data_index in self.active_columns:
-                col_label = ALL_COLUMN_LABELS[data_index] if data_index < len(ALL_COLUMN_LABELS) else ""
-                if col_label.strip().lower() not in original_keys_lower:
-                    filtered_active_columns.append(data_index)
+            # ГРУПУВАННЯ записів з БД
+            db_grouped_awards = {}
+            db_grouped_inn = {}
+            
+            for item in db_rows:
+                norm = item["ПІБ_norm"]
+                res = item["Результат_БД"]
+                inn_db = item["РНОКПП_БД"]
+                
+                if norm not in db_grouped_awards:
+                    db_grouped_awards[norm] = []
+                if res and res not in db_grouped_awards[norm]:
+                    db_grouped_awards[norm].append(res)
+                
+                # Записуємо РНОКПП обов'язково, якщо він є в базі для цього ПІБ
+                if inn_db and not db_grouped_inn.get(norm):
+                    db_grouped_inn[norm] = inn_db
 
-            # Рахуємо максимальну кількість знайдених записів для людини
-            max_items_count = 1
-            for rows_list in db_map.values():
-                if len(rows_list) > max_items_count:
-                    max_items_count = len(rows_list)
-
-            # Формуємо назви лише для унікальних/специфічних колонок з бази для кожної нагороди/подання
-            self.extended_db_labels = []
-            for i in range(1, max_items_count + 1):
-                for data_index in filtered_active_columns:
-                    col_orig_name = ALL_COLUMN_LABELS[data_index] if data_index < len(ALL_COLUMN_LABELS) else str(data_index)
-                    self.extended_db_labels.append(f"{col_orig_name} ({i})")
-
-            self.columns_names = self.original_keys + self.extended_db_labels
+            db_grouped_final = {
+                k: "; ".join(v) for k, v in db_grouped_awards.items() if v
+            }
 
             wx.CallAfter(self.progress_gauge.SetValue, 80)
 
-            # ГОЛОВНИЙ ЦИКЛ: з'єднуємо рядок CSV з відфільтрованими даними з бази
+            # ГОЛОВНИЙ ЦИКЛ: формуємо результуючий список для ВСІХ записів вхідного файлу
             self.result_data = []
             for row in self.input_data:
                 pib_norm = row.get("ПІБ_norm", "")
                 
-                # Копіюємо всі початкові колонки з CSV
-                new_row = {k: row.get(k, "") for k in self.original_keys}
+                # 1. Нагороди (якщо немає в базі чи за фільтрами, ставимо "—")
+                found_awards = db_grouped_final.get(pib_norm, "—")
                 
-                matched_rows = db_map.get(pib_norm, [])
-                
-                # Заповнюємо специфічні дані по черзі для 1-ї, 2-ї і т.д. нагороди
-                for item_idx in range(max_items_count):
-                    db_row = matched_rows[item_idx] if item_idx < len(matched_rows) else None
-                    
-                    for data_index in filtered_active_columns:
-                        col_orig_name = ALL_COLUMN_LABELS[data_index] if data_index < len(ALL_COLUMN_LABELS) else str(data_index)
-                        ext_col_name = f"{col_orig_name} ({item_idx + 1})"
-                        
-                        if db_row and data_index < len(db_row):
-                            val = db_row[data_index]
-                            new_row[ext_col_name] = str(val if val is not None else "")
-                        else:
-                            new_row[ext_col_name] = "—"
+                # 2. РНОКПП: завжди беремо з бази даних, якщо воно там є для цього ПІБ. 
+                # Якщо в базі немає — залишаємо те, що було у вхідному файлі.
+                row_inn = db_grouped_inn.get(pib_norm, "")
 
-                self.result_data.append(new_row)
+                if not row_inn:
+                    row_inn = row.get("РНОКПП", "").strip()
+
+                if row_inn.endswith('.0'):
+                    row_inn = row_inn[:-2]
+                
+                self.result_data.append({
+                    "Звання": row.get("Звання", ""),
+                    "ПІБ": row.get("ПІБ", ""),
+                    "Посада": row.get("Посада", ""),
+                    "РНОКПП": row_inn,  # Підтягується з бази для всіх знайдених людей
+                    "Знайдені нагороди / подання": found_awards
+                })
 
             wx.CallAfter(self.progress_gauge.SetValue, 90)
             wx.CallAfter(self.update_gui_after_processing)
@@ -317,9 +177,10 @@ class ComparisonReportFrame(wx.Frame, ExportMixin):
             if conn: 
                 try: conn.close()
                 except Exception: pass
-
+                
 
     def update_gui_after_processing(self):
+        """Оновлює елементи таблиці та UI у головному потоці."""
         self.grid.CreateGrid(len(self.result_data), len(self.columns_names))
         
         for col_idx, col_name in enumerate(self.columns_names):
@@ -334,63 +195,96 @@ class ComparisonReportFrame(wx.Frame, ExportMixin):
         self.record_count_label.SetLabel(f"Всього у списку: {len(self.result_data)}")
         self.progress_gauge.SetValue(100)
 
+    def on_export_excel(self, event):
+        if not self.result_data:
+            return
+        
+        with wx.FileDialog(self, "Зберегти звіт Excel", wildcard="Excel files (*.xlsx)|*.xlsx",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                           defaultDir=self.zvit_dir or "", defaultFile="звіт_порівняння.xlsx") as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                path = dlg.GetPath()
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "Звіт"
+                
+                ws.append(self.columns_names)
+                for cell in ws[1]:
+                    cell.font = Font(bold=True)
+                
+                for row_dict in self.result_data:
+                    row_vals = [row_dict.get(col, "") for col in self.columns_names]
+                    ws.append(row_vals)
+                    
+                wb.save(path)
+                wx.MessageBox(f"Успішно збережено в {path}", "Успіх", wx.OK | wx.ICON_INFORMATION)
+
+    def on_export_csv(self, event):
+        if not self.result_data:
+            return
+            
+        with wx.FileDialog(self, "Зберегти звіт CSV", wildcard="CSV files (*.csv)|*.csv",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                           defaultDir=self.zvit_dir or "", defaultFile="звіт_порівняння.csv") as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                path = dlg.GetPath()
+                with open(path, mode='w', newline='', encoding='utf-8-sig') as csv_file:
+                    writer = csv.writer(csv_file, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+                    writer.writerow(self.columns_names)
+                    for row_dict in self.result_data:
+                        writer.writerow([row_dict.get(col, "") for col in self.columns_names])
+
+                wx.MessageBox(f"Успішно збережено в {path}", "Успіх", wx.OK | wx.ICON_INFORMATION)
 
 
 def parse_input_person_csv(filepath):
     """
-    Завантажує та нормалізує CSV файл зі списком людей за заголовками стовпців.
+    Завантажує та нормалізує CSV файл зі списком людей (1 людина - 1 рядок).
     Повертає список словників з ключами: ['Звання', 'ПІБ', 'Посада', 'РНОКПП', 'ПІБ_norm', 'РНОКПП_norm']
     """
     spis_rows = []
-    encodings = ['utf-8-sig', 'utf-8', 'cp1251', 'windows-1251']
-    
-    for enc in encodings:
-        try:
-            with open(filepath, "r", encoding=enc, newline="", errors="ignore") as f:
-                sample = f.read(2048)
-                f.seek(0)
-                delimiter = ';' if sample.count(';') > sample.count(',') else ','
-                
-                reader = csv.DictReader(f, delimiter=delimiter)
-                if not reader.fieldnames:
+    with open(filepath, "r", encoding="utf-8-sig", errors="ignore") as f:
+        sample = f.read(2048)
+        f.seek(0)
+        delimiter = ';' if ';' in sample else ','
+        reader = csv.reader(f, delimiter=delimiter)
+        
+        for row in reader:
+            if not row or len(row) < 1:
+                continue
+            
+            pib = ""
+            inn = ""
+            zvannya = ""
+            posada = ""
+            
+            for cell in row:
+                cell_clean = cell.strip()
+                if not cell_clean:
                     continue
+                if len(cell_clean) == 10 and cell_clean.isdigit():
+                    inn = cell_clean
+                    if inn.endswith('.0'):
+                        inn = inn[:-2]
+                elif len(cell_clean.split()) >= 2 and not pib:
+                    pib = cell_clean
+                elif not zvannya:
+                    zvannya = cell_clean
+                else:
+                    posada = cell_clean
+
+            if pib:
+                pib_norm = " ".join(pib.strip().upper().split())
+                inn_norm = inn.strip() if inn.strip().isdigit() else ""
                 
-                # Приводимо назви заголовків до нижнього регістру для надійного пошуку
-                fields_map = {name.strip().lower(): name for name in reader.fieldnames}
-                
-                # Шукаємо відповідності для ключових колонок
-                pib_key = next((fields_map[k] for k in ['прізвищ', 'pib', 'name', 'прізвище, ім\'я, по батькові', ' ПІБ '] if k in fields_map), None)
-                inn_key = next((fields_map[k] for k in ['рнокпп', 'іпн', 'inn', 'ідентифікаційний код', 'код'] if k in fields_map), None)
-                rank_key = next((fields_map[k] for k in ['звання', 'військове звання', 'rank'] if k in fields_map), None)
-                pos_key = next((fields_map[k] for k in ['посада', 'position', 'посади'] if k in fields_map), None)
-                
-                # Якщо заголовок ПІБ не знайдено за назвою, спробуємо взяти перший стовпець
-                fallback_fields = reader.fieldnames
-                
-                for row in reader:
-                    pib = row.get(pib_key, "").strip() if pib_key else row.get(fallback_fields[0], "").strip()
-                    inn = row.get(inn_key, "").strip() if inn_key else ""
-                    zvannya = row.get(rank_key, "").strip() if rank_key else ""
-                    posada = row.get(pos_key, "").strip() if pos_key else ""
-                    
-                    # Якщо раптом ПІБ виявився порожнім у вибраному стовпці, пропустимо рядок
-                    if not pib:
-                        continue
-                        
-                    pib_norm = " ".join(pib.upper().split())
-                    inn_norm = "".join(filter(str.isdigit, inn)) # Тільки цифри для ІПН/РНОКПП
-                    
-                    spis_rows.append({
-                        "Звання": zvannya,
-                        "ПІБ": pib,
-                        "Посада": posada,
-                        "РНОКПП": inn,
-                        "ПІБ_norm": pib_norm,
-                        "РНОКПП_norm": inn_norm
-                    })
-            break # Якщо файл успішно прочитано — виходимо з циклу кодувань
-        except Exception:
-            continue
+                spis_rows.append({
+                    "Звання": zvannya,
+                    "ПІБ": pib,
+                    "Посада": posada,
+                    "РНОКПП": inn,
+                    "ПІБ_norm": pib_norm,
+                    "РНОКПП_norm": inn_norm
+                })
 
     return spis_rows
 
@@ -473,8 +367,12 @@ class ComboSearchHelper:
         self.combo_ctrl.Bind(wx.EVT_TEXT, self.on_text_changed)
 
 
+# ----------------- ЛОГІКА ЗАПИТІВ ДЛЯ ЗВІТІВ
 
-class ReportGeneratorWx(wx.Frame, ExportMixin):
+MIN_ROW_HEIGHT = 25
+MAX_WIDTH = 300 
+
+class ReportGeneratorWx(wx.Frame):
     def __init__(self, parent, db_path, key, zvit_fields, zvit_dir, filters, exel_bmp=None):
         super().__init__(parent, title="Звіт", size=(800, 680))
 
@@ -877,7 +775,119 @@ class ReportGeneratorWx(wx.Frame, ExportMixin):
         if self and not self.IsBeingDeleted():
             wx.MessageBox(message, "Інформація", wx.OK | wx.ICON_INFORMATION)
 
+    def on_export_excel(self, event):
+        if self.data is None or not self.data:
+            wx.MessageBox("Немає даних для експорту.", "Інформація", wx.OK | wx.ICON_INFORMATION)
+            return
 
+        defaultDir = self.zvit_dir if self.zvit_dir else os.getcwd()
+        with wx.FileDialog(self, "Зберегти звіт у Excel",
+                           wildcard="Excel files (*.xlsx)|*.xlsx",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                           defaultDir=defaultDir,
+                           defaultFile="звіт.xlsx") as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            pathname = fileDialog.GetPath()
+            try:
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "Звіт"
+
+                if hasattr(self, 'pre_titlestr') and self.pre_titlestr:
+                    ws.append([self.pre_titlestr])
+                    ws['A1'].font = Font(bold=True)
+                    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(self.column_labels))
+                    ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+                    header_row_index = 2
+                else:
+                    header_row_index = 1
+
+                ws.append(self.column_labels)
+                header_font = Font(bold=True)
+                header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                for col_idx, cell in enumerate(ws[header_row_index]):
+                    cell.font = header_font
+                    cell.alignment = header_alignment
+                    col_letter = get_column_letter(col_idx + 1)
+                    ws.column_dimensions[col_letter].width = 20
+
+                data_alignment = Alignment(vertical='top', wrap_text=True)
+                for row in self.data:
+                    excel_row_data = []
+                    for data_index in self.active_columns:
+                        try:
+                            value = row[data_index] if data_index < len(row) else ""
+                            excel_row_data.append(str(value if value is not None else ''))
+                        except Exception:
+                            excel_row_data.append("Error")
+
+                    ws.append(excel_row_data)
+
+                PIXELS_TO_EXCEL_UNITS = 7
+                MAX_EXCEL_WIDTH = MAX_WIDTH / PIXELS_TO_EXCEL_UNITS
+                self.long_text_source_indices = [5] 
+
+                for i, original_col_index in enumerate(self.active_columns):
+                    col_letter = get_column_letter(i + 1)
+                    if original_col_index in self.long_text_source_indices:
+                        ws.column_dimensions[col_letter].width = MAX_EXCEL_WIDTH
+
+                for row_idx in range(header_row_index + 1, ws.max_row + 1):
+                     for col_idx in range(1, ws.max_column + 1):
+                        ws.cell(row=row_idx, column=col_idx).alignment = data_alignment
+
+                wb.save(pathname)
+                wx.CallAfter(wx.MessageBox, f"Звіт успішно збережено в {pathname}", "Успіх", wx.OK | wx.ICON_INFORMATION)
+
+            except Exception as e:
+                error_msg = f"Помилка при збереженні звіту: {e}"
+                wx.CallAfter(wx.MessageBox, error_msg, "Помилка", wx.OK | wx.ICON_ERROR)
+
+    def on_export_csv(self, event):
+        if self.data is None or not self.data:
+            wx.MessageBox("Немає даних для експорту.", "Інформація", wx.OK | wx.ICON_INFORMATION)
+            return
+
+        defaultDir = self.zvit_dir if self.zvit_dir else os.getcwd()
+        with wx.FileDialog(self, "Зберегти звіт у CSV",
+                           wildcard="CSV files (*.csv)|*.csv",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                           defaultDir=defaultDir,
+                           defaultFile="звіт.csv") as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            pathname = fileDialog.GetPath()
+            try:
+                with open(pathname, mode='w', newline='', encoding='utf-8-sig') as csv_file:
+                    writer = csv.writer(csv_file, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+
+                    if hasattr(self, 'pre_titlestr') and self.pre_titlestr:
+                        writer.writerow([self.pre_titlestr])
+                        writer.writerow([])
+
+                    writer.writerow(self.column_labels)
+
+                    for row in self.data:
+                        csv_row_data = []
+                        for data_index in self.active_columns:
+                            try:
+                                value = row[data_index] if data_index < len(row) else ""
+                                csv_row_data.append(str(value if value is not None else ''))
+                            except Exception:
+                                csv_row_data.append("Error")
+
+                        writer.writerow(csv_row_data)
+
+                wx.CallAfter(wx.MessageBox, f"Звіт успішно збережено в {pathname}", "Успіх", wx.OK | wx.ICON_INFORMATION)
+
+            except Exception as e:
+                error_msg = f"Помилка при збереженні CSV файлу: {e}"
+                wx.CallAfter(wx.MessageBox, error_msg, "Помилка", wx.OK | wx.ICON_ERROR)
 
 
 def build_query(filters, zvit_fields):
@@ -1065,28 +1075,6 @@ def build_query(filters, zvit_fields):
 
         params.update(award_params_awarding)
 
-        # query = f"""
-        #     SELECT
-        #         p.name, p.rank, p.unit,
-        #         pr.registration, pr.date_registration, pr.text_presentation, pr.report,
-        #         m.decree, m.date_decree,
-        #         a.denotation,
-        #         m.date_handover,
-        #         p2.name,
-        #         m.consignment_note, m.number_meed, m.dead, p.inn, p.date_birth
-        #     FROM meed m
-        #     JOIN personality p ON m.id_personality = p.id
-        #     JOIN award a ON m.id_award = a.id
-        #     LEFT JOIN (
-        #         SELECT id, id_personality, id_meed, worker,
-        #           registration, date_registration, text_presentation, report
-        #         FROM presentation
-        #         {presentation_subquery_where}
-        #     ) pr ON m.id = pr.id_meed
-        #     LEFT JOIN personality p2 ON p2.id = m.handover
-        #     {awarding_where_string}
-        #     {id_order_name_alph}
-        #     """
         query = f"""
             SELECT
                 p.name, p.rank, p.unit,
@@ -1109,115 +1097,6 @@ def build_query(filters, zvit_fields):
             {awarding_where_string}
             {id_order_name_alph}
             """
-    
-    # elif mode == 'submission':
-    #     id_worker_condition = ""
-    #     id_worker_map = {"Усі": "_", "ВП": "0", "МПЗ": "1", "Інші": "2"}
-    #     worker_filter_value = filters.get("worker", "")
-    #     id_worker_value = id_worker_map.get(worker_filter_value, "")
-
-    #     worker_filter_active = worker_filter_value and id_worker_value != "_" 
-    #     if worker_filter_active:
-    #         id_worker_condition = "AND pr.worker = :worker_id"
-    #         params["worker_id"] = int(id_worker_value)
-
-    #     id_meed_status = ""
-    #     label_selected_presvarR2 = "УСІ подання"
-
-    #     submission_status_filter = filters.get('submission_status')
-
-    #     if submission_status_filter == 1:
-    #         id_meed_status = "AND pr.id_meed > 0"
-    #         label_selected_presvarR2 = "ПОГОДЖЕНІ подання"
-    #     elif submission_status_filter == 2:
-    #         id_meed_status = "AND pr.id_meed = '0'"
-    #         label_selected_presvarR2 = "НЕ ПОГОДЖЕНІ подання"
-    #     elif submission_status_filter == 3:
-    #         id_meed_status = "AND (pr.id_meed IS NULL OR TRIM(pr.id_meed) = '')"
-    #         label_selected_presvarR2 = "подання У ЗАЛИШКУ"
-
-    #     pre_titlestr = f'{label_selected_presvarR2} -вик.{filters.get("worker", "")}'
-
-    #     if filters.get('posthumous'):
-    #         id_dead_status = "AND pr.report == 'посмертно'"  
-    #         pre_titlestr += " -посмертно"
-    #     else:
-    #        id_dead_status = ""
-
-    #     pre_titlestr += f" -{filters.get('start_date')}_{filters.get('end_date')}"
-
-    #     if filters.get('person_category'):
-    #         pre_titlestr += f" -{filters.get('person_category')}"
-
-    #     if filters.get('unit'):
-    #         pre_titlestr += f" -{filters.get('unit')}"        
-
-    #     submission_conditions_list = []
-
-    #     if not filters.get("all_time"):
-    #         submission_conditions_list.append("pr.date_registration BETWEEN :date_0 AND :date_1")
-
-    #     if id_meed_status:
-    #         cleaned_meed_status = id_meed_status.lstrip().replace("AND ", "", 1).strip()
-    #         if cleaned_meed_status:
-    #             submission_conditions_list.append(cleaned_meed_status)
-
-    #     if id_dead_status:
-    #         cleaned_dead_status = id_dead_status.lstrip().replace("AND ", "", 1).strip()
-    #         if cleaned_dead_status:
-    #             submission_conditions_list.append(cleaned_dead_status)
-
-    #     if unit_condition:
-    #          cleaned_unit_condition = unit_condition.lstrip().replace("AND ", "", 1).strip()
-    #          if cleaned_unit_condition:
-    #              submission_conditions_list.append(cleaned_unit_condition)
-
-    #     if id_rank_condition:
-    #          cleaned_rank_condition = id_rank_condition.lstrip().replace("AND ", "", 1).strip()
-    #          if cleaned_rank_condition:
-    #              submission_conditions_list.append(cleaned_rank_condition)
-
-    #     if id_worker_condition:
-    #          cleaned_worker_condition = id_worker_condition.lstrip().replace("AND ", "", 1).strip()
-    #          if cleaned_worker_condition:
-    #              submission_conditions_list.append(cleaned_worker_condition)
-
-    #     submission_where_string = ""
-    #     if submission_conditions_list:
-    #         submission_where_string = "WHERE " + " AND ".join(submission_conditions_list)
-
-    #     # query = f"""
-    #     #      SELECT p.name, p.rank, p.unit, pr.registration,
-    #     #           pr.date_registration, pr.text_presentation, pr.report,
-    #     #           m.decree, m.date_decree,
-    #     #           a.denotation,
-    #     #           m.date_handover,
-    #     #           CASE WHEN p2.name IS NOT NULL THEN p2.name ELSE m.handover END,
-    #     #           m.consignment_note, m.number_meed, m.dead, p.inn, p.date_birth
-    #     #      FROM presentation pr
-    #     #      JOIN personality p ON pr.id_personality = p.id
-    #     #      LEFT JOIN meed m ON m.id = pr.id_meed
-    #     #      LEFT JOIN award a ON m.id_award = a.id
-    #     #      LEFT JOIN personality p2 ON p2.id = m.handover
-    #     #      {submission_where_string}
-    #     #      {id_order_name_alph}
-    #     #      """
-    #     query = f"""
-    #          SELECT p.name, p.rank, p.unit, pr.registration,
-    #               pr.date_registration, pr.text_presentation, pr.report,
-    #               m.decree, m.date_decree,
-    #               a.denotation,
-    #               m.date_handover,
-    #               CASE WHEN p2.name IS NOT NULL THEN p2.name ELSE m.handover END,
-    #               m.consignment_note, m.number_meed, m.dead, p.inn, p.date_birth
-    #          FROM personality p
-    #          LEFT JOIN presentation pr ON pr.id_personality = p.id
-    #          LEFT JOIN meed m ON m.id = pr.id_meed
-    #          LEFT JOIN award a ON m.id_award = a.id
-    #          LEFT JOIN personality p2 ON p2.id = m.handover
-    #          {submission_where_string}
-    #          {id_order_name_alph}
-    #          """    
 
     elif mode == 'submission':
         id_worker_condition = ""
@@ -1319,6 +1198,7 @@ def build_query(filters, zvit_fields):
         pre_titlestr = "Не вибрано режим вибірки"
 
     return query, params, pre_titlestr
+
 
 def fetch_data(cursor, query, params=None):
     try:
