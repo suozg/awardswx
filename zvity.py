@@ -585,6 +585,8 @@ class Tab4Panel(scrolled.ScrolledPanel):
                     has_inn = sum(1 for item in self.loaded_input_df if item.get("РНОКПП_norm"))                   
 
                     self.lbl_csv_info.SetLabel(f"(ПІБ:{count}/РНОКПП:{has_inn})")
+                    self.update_footer_message("Збереже ВСІ початкові колонки з CSV і лише дописує дані про нагороди/подання при збігу.")
+
                 except Exception as e:
                     wx.MessageBox(f"Помилка при зчитуванні CSV файлу:\n{e}", "Помилка", wx.OK | wx.ICON_ERROR)
                     self.lbl_csv_info.SetLabel("Помилка файлу")

@@ -17,7 +17,7 @@ from zvity import Tab4Panel
 from text_present_search import SearchPanel
 from setuptab import SettingsPanel
 from info import InfoPanel
-from websearch import WebSearchPanel
+#from websearch import WebSearchPanel
 from tablaw import LawsPanel
 import locale
 locale.setlocale(locale.LC_TIME, 'uk_UA.UTF-8') 
@@ -280,23 +280,23 @@ class MainFrame(wx.Frame):
             error_panel.SetSizer(error_panel_sizer)
             notebook.AddPage(error_panel, "ТЕКСТ (Помилка)")
 
-        tab6_container_panel = wx.Panel(notebook, wx.ID_ANY)
-        tab6_sizer = wx.BoxSizer(wx.VERTICAL)
-        try:
-            panel6 = WebSearchPanel(
-                tab6_container_panel,
-                self.conn,
-                self.cursor,
-                fut_place=self.fut_place
-            )
-            tab6_sizer.Add(panel6, 1, wx.EXPAND | wx.ALL, 5)
-            tab6_container_panel.SetSizer(tab6_sizer)
-            notebook.AddPage(tab6_container_panel, "ВЕБ-ПОШУК")
-        except Exception as e:
-            error_panel = wx.Panel(notebook, wx.ID_ANY); error_panel_sizer = wx.BoxSizer(wx.VERTICAL)
-            error_panel_sizer.Add(wx.StaticText(error_panel, wx.ID_ANY, f"Не вдалося завантажити вкладку 'ВЕБ-ПОШУК': {e}"), 1, wx.EXPAND | wx.ALL, 10)
-            error_panel.SetSizer(error_panel_sizer)
-            notebook.AddPage(error_panel, "ВЕБ-ПОШУК (Помилка)")
+        # tab6_container_panel = wx.Panel(notebook, wx.ID_ANY)
+        # tab6_sizer = wx.BoxSizer(wx.VERTICAL)
+        # try:
+        #     panel6 = WebSearchPanel(
+        #         tab6_container_panel,
+        #         self.conn,
+        #         self.cursor,
+        #         fut_place=self.fut_place
+        #     )
+        #     tab6_sizer.Add(panel6, 1, wx.EXPAND | wx.ALL, 5)
+        #     tab6_container_panel.SetSizer(tab6_sizer)
+        #     notebook.AddPage(tab6_container_panel, "ВЕБ-ПОШУК")
+        # except Exception as e:
+        #     error_panel = wx.Panel(notebook, wx.ID_ANY); error_panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        #     error_panel_sizer.Add(wx.StaticText(error_panel, wx.ID_ANY, f"Не вдалося завантажити вкладку 'ВЕБ-ПОШУК': {e}"), 1, wx.EXPAND | wx.ALL, 10)
+        #     error_panel.SetSizer(error_panel_sizer)
+        #     notebook.AddPage(error_panel, "ВЕБ-ПОШУК (Помилка)")
 
         tab10_panel = InfoPanel(notebook, self.settings_manager, self.conn, fut_place=self.fut_place)
 

@@ -69,15 +69,14 @@ def format_award_or_submission_text(r):
 
 def build_comparison_result(input_data, db_rows, mode="columns"):
     """
-    mode:
-      - 'columns' -> ПІБ, РНОКПП, Дані 1, Дані 2, ...
-      - 'single'  -> ПІБ, РНОКПП, Дані
-
-    Важливо: ПІБ і РНОКПП не дублюються, дані про нагороди/подання
-    виводяться окремо в кінці рядка.
+    input_data: список словників (повний вміст початкового CSV-файлу зі всіма колонками).
+    db_rows: знайдені збіги з бази даних.
+    mode: 'columns' (розгорнути в окремі колонки Дані 1, Дані 2...) або 'single' (в один рядок через крапку з комою).
+    
+    Зберігає ВСІ початкові колонки з CSV і лише дописує дані про нагороди/подання при збігу.
     """
+    # 1. Групуємо дані з бази за нормалізованим ПІБ
     grouped = {}
-
     for item in db_rows:
         pib_norm = normalize_pib(item.get("ПІБ_norm", ""))
         if not pib_norm:
@@ -99,37 +98,71 @@ def build_comparison_result(input_data, db_rows, mode="columns"):
 
     result_rows = []
     max_extra = 0
+    all_original_keys = set()
 
+    # Збираємо всі ключі (колонки), які були в початковому CSV
     for row in input_data:
-        pib_raw = str(row.get("ПІБ", "")).strip()
+        for k in row.keys():
+            all_original_keys.add(k)
+
+    # Видаляємо службові нормалізовані ключі, якщо вони є в словнику рядка
+    for k in ["ПІБ_norm", "РНОКПП_norm"]:
+        if k in all_original_keys:
+            all_original_keys.remove(k)
+
+    # 2. Проходимо по кожному рядку оригінального CSV файлу
+    for row in input_data:
         pib_norm = normalize_pib(row.get("ПІБ_norm", ""))
-        info = grouped.get(pib_norm, {"inn": "", "details": []})
-        inn_value = normalize_inn(info.get("inn") or row.get("РНОКПП", ""))
+        inn_csv = normalize_inn(row.get("РНОКПП", ""))
+        
+        # Шукаємо збіг за ПІБ_norm або за РНОКПП (якщо РНОКПП заповнений в обох)
+        info = None
+        if pib_norm and pib_norm in grouped:
+            info = grouped[pib_norm]
+        else:
+            # Додаткова перевірка за РНОКПП, якщо ПІБ відрізняється написанням
+            for g_pib, g_data in grouped.items():
+                if inn_csv and g_data.get("inn") == inn_csv:
+                    info = g_data
+                    break
+
+        if not info:
+            info = {"inn": "", "details": []}
 
         details = list(info.get("details", []))
+        
+        # Копіюємо абсолютно всі початкові колонки з оригінального рядка CSV
+        out = {}
+        for key in row.keys():
+            if key not in ["ПІБ_norm", "РНОКПП_norm"]:
+                out[key] = row[key]
+
+        # Доповнюємо РНОКПП з бази, якщо в CSV він був порожній, а в базі є
+        if not normalize_inn(out.get("РНОКПП", "")) and info.get("inn"):
+            out["РНОКПП"] = info.get("inn")
+
+        # Додаємо результати нагороджень / подань
         if mode == "columns":
-            out = {
-                "ПІБ": pib_raw,
-                "РНОКПП": inn_value
-            }
             for i, val in enumerate(details, start=1):
                 out[f"Дані {i}"] = val
             max_extra = max(max_extra, len(details))
-            result_rows.append(out)
         else:
-            out = {
-                "ПІБ": pib_raw,
-                "РНОКПП": inn_value,
-                "Дані": "; ".join(details) if details else "—"
-            }
-            result_rows.append(out)
+            out["Дані"] = "; ".join(details) if details else "—"
 
+        result_rows.append(out)
+
+    # Формуємо список колонок для таблиці та експорту
+    # Спочатку беруться всі оригінальні колонки з CSV (Звання, ПІБ, Посада, РНОКПП тощо)
+    base_columns = [k for k in input_data[0].keys() if k not in ["ПІБ_norm", "РНОКПП_norm"]] if input_data else []
+    
     if mode == "columns":
-        columns = ["ПІБ", "РНОКПП"] + [f"Дані {i}" for i in range(1, max_extra + 1)]
+        extra_columns = [f"Дані {i}" for i in range(1, max_extra + 1)]
+        columns = base_columns + extra_columns
         return result_rows, columns
 
-    return result_rows, ["ПІБ", "РНОКПП", "Дані"]
-
+    if "Дані" not in base_columns:
+        base_columns.append("Дані")
+    return result_rows, base_columns
 
 def export_table_to_csv(frame, columns, rows, default_name, default_dir):
     with wx.FileDialog(frame, "Зберегти звіт CSV",
